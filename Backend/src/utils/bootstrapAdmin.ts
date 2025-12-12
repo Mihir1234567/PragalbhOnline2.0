@@ -11,6 +11,7 @@ export const ensureAdmin = async () => {
       );
       return;
     }
+    console.log(`Bootstrapping Admin with Env Email: ${adminEmail}`);
 
     // Find existing admin by email or generic admin role
     let admin = await Admin.findOne({ email: adminEmail });
