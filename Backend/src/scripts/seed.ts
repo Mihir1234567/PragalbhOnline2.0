@@ -20,8 +20,8 @@ const seedData = async () => {
     // Create Default Admin
     const admin = new Admin({
       name: "Admin User",
-      email: "admin@pragalbh.com",
-      password: "adminpassword123", // Will be hashed by pre-save hook
+      email: process.env.ADMIN_EMAIL,
+      password: process.env.ADMIN_PASSWORD, // Will be hashed by pre-save hook
       phone: "+91 98983 29056",
       profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",
       role: "admin",
