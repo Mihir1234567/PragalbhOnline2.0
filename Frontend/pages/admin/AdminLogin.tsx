@@ -11,9 +11,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import api from "../../lib/client";
+import { useToast } from "../../context/ToastContext";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,7 +57,7 @@ const AdminLogin: React.FC = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <img
-            src="assets\marissa-grootes-flRm0z3MEoA-unsplash.jpg"
+            src="/assets/marissa-grootes-flRm0z3MEoA-unsplash.jpg"
             alt="Legal Office"
             className="w-full h-full object-cover opacity-20 mix-blend-overlay"
           />
@@ -78,7 +80,7 @@ const AdminLogin: React.FC = () => {
           </div>
 
           <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 tracking-tight leading-tight">
-            Legal Associates <br />
+            PRAGALBH <br />
             <span className="text-indigo-300">& Xerox Services</span>
           </h1>
 
