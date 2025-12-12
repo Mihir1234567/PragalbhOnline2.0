@@ -47,11 +47,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
         <Icon size={24} />
       </div>
       <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white mb-2">
-      <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white mb-2">
-        {service.title?.[language] || service.title?.["EN"] || "Untitled Service"}
+        {service.title?.[language] ||
+          service.title?.["EN"] ||
+          "Untitled Service"}
       </h3>
       <p className="text-slate-600 dark:text-slate-300 text-sm mb-6 leading-relaxed line-clamp-3">
-        {service.description?.[language] || service.description?.["EN"] || "No description available."}
+        {service.description?.[language] ||
+          service.description?.["EN"] ||
+          "No description available."}
       </p>
       <button
         onClick={handleApply}
