@@ -13,6 +13,7 @@ interface ServiceContextType {
   addService: (service: Omit<Service, "id">) => void;
   deleteService: (id: string) => void;
   fetchServices: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
@@ -21,12 +22,14 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load services from local storage or fallback to constants
   // Load services from API
   // Load services from API
   // Load services from API
   const fetchServices = async (retries = 3, delay = 1000) => {
+    setIsLoading(true);
     for (let i = 0; i < retries; i++) {
       try {
         const { data } = await api.get("/services");
@@ -57,6 +60,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({
         }
       }
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -74,7 +78,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({
 
   return (
     <ServiceContext.Provider
-      value={{ services, addService, deleteService, fetchServices }}
+      value={{ services, addService, deleteService, fetchServices, isLoading }}
     >
       {children}
     </ServiceContext.Provider>
