@@ -11,9 +11,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import api from "../../lib/client";
+import { useToast } from "../../context/ToastContext";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
