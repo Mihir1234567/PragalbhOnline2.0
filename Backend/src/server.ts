@@ -29,7 +29,6 @@ import applicationRoutes from "./routes/application.routes";
 import testimonialRoutes from "./routes/testimonial.routes";
 import reviewRoutes from "./routes/reviewRoutes";
 import statsRoutes from "./routes/stats.routes";
-import translationRoutes from "./routes/translation.routes";
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -38,7 +37,6 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/stats", statsRoutes);
-app.use("/api/translations", translationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Pragalbh Services Backend is running");

@@ -4,7 +4,7 @@ export interface IReview extends Document {
   name: string;
   rating: number;
   content: string;
-  language: "EN" | "GU" | "HI";
+  language: "EN" | "GU";
   approved: boolean;
   createdAt: Date;
 }
@@ -28,7 +28,7 @@ const reviewSchema = new Schema({
   },
   language: {
     type: String,
-    enum: ["EN", "GU", "HI"],
+    enum: ["EN", "GU"],
     default: "EN",
   },
   approved: {

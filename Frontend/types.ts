@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-export type Language = "EN" | "GU" | "HI";
+export type Language = "EN" | "GU";
 
 export interface Service {
   id: string;
@@ -8,18 +8,15 @@ export interface Service {
   title: {
     EN: string;
     GU: string;
-    HI: string;
   };
   description: {
     EN: string;
     GU: string;
-    HI: string;
   };
   category: "CERTIFICATE" | "ASSISTANCE" | "OTHER" | "ONLINE";
   documents?: {
     EN: string[];
     GU: string[];
-    HI: string[];
   };
 }
 
@@ -30,7 +27,6 @@ export interface Testimonial {
   content: {
     EN: string;
     GU: string;
-    HI: string;
   };
   rating: number;
 }
@@ -39,7 +35,6 @@ export interface Translations {
   [key: string]: {
     EN: string;
     GU: string;
-    HI: string;
   };
 }
 
@@ -56,7 +51,6 @@ export interface Stat {
   label: {
     EN: string;
     GU: string;
-    HI: string;
   };
   iconName: string;
 }

@@ -10,7 +10,6 @@ interface ServicePreviewModalProps {
 const LANGUAGES = [
   { key: "EN", label: "English" },
   { key: "GU", label: "Gujarati" },
-  { key: "HI", label: "Hindi" },
 ];
 
 const ServicePreviewModal: React.FC<ServicePreviewModalProps> = ({

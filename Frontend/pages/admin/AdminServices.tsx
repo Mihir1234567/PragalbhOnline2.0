@@ -50,7 +50,7 @@ const AdminServices: React.FC = () => {
     (service) =>
       service.title.EN.toLowerCase().includes(searchTerm.toLowerCase()) ||
       service.title.GU?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.title.HI?.toLowerCase().includes(searchTerm.toLowerCase())
+      service.title.GU?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleApplyClick = (service: any) => {
@@ -58,8 +58,7 @@ const AdminServices: React.FC = () => {
     setFormData({
       customerName: "",
       phone: "",
-      messageLanguage:
-        language === "GU" ? "GU" : language === "HI" ? "HI" : "EN",
+      messageLanguage: language === "GU" ? "GU" : "EN",
     });
     setIsModalOpen(true);
     setSuccessMsg("");
@@ -108,8 +107,7 @@ const AdminServices: React.FC = () => {
     // Customize greeting based on language
     if (msgLang === "GU") {
       text = `નમસ્તે ${formData.customerName},\n\nતમારા *${serviceTitle}* માટેના દસ્તાવેજોની સૂચિ અહીં છે.`;
-    } else if (msgLang === "HI") {
-      text = `नमस्ते ${formData.customerName},\n\nयहाँ आपकी *${serviceTitle}* दस्तावेज़ सूची है।`;
+      text = `નમસ્તે ${formData.customerName},\n\nતમારા *${serviceTitle}* માટેના દસ્તાવેજોની સૂચિ અહીં છે.`;
     }
 
     // Add documents list if available
@@ -118,7 +116,7 @@ const AdminServices: React.FC = () => {
 
     if (documentsList && documentsList.length > 0) {
       if (msgLang === "GU") text += `\n\n*જરૂરી દસ્તાવેજો:*\n`;
-      else if (msgLang === "HI") text += `\n\n*आवश्यक दस्तावेज़:*\n`;
+      if (msgLang === "GU") text += `\n\n*જરૂરી દસ્તાવેજો:*\n`;
       else text += `\n\n*Required Documents:*\n`;
 
       documentsList.forEach((doc: string, index: number) => {
@@ -346,7 +344,6 @@ const AdminServices: React.FC = () => {
                     >
                       <option value="EN">English</option>
                       <option value="GU">Gujarati</option>
-                      <option value="HI">Hindi</option>
                     </select>
                   </div>
 
