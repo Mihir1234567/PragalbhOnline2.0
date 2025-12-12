@@ -28,7 +28,7 @@ const reviewSchema = new Schema({
   },
   language: {
     type: String,
-    enum: ["EN", "GU"],
+    enum: ["EN", "GU", "HI"],
     default: "EN",
   },
   approved: {
