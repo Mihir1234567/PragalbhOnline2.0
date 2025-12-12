@@ -80,7 +80,7 @@ const AdminLogin: React.FC = () => {
           </div>
 
           <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 tracking-tight leading-tight">
-            Legal Associates <br />
+            Pragalbh Associates <br />
             <span className="text-indigo-300">& Xerox Services</span>
           </h1>
 
