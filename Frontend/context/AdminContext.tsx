@@ -22,6 +22,7 @@ import { Review } from "./AdminTypes";
 
 interface AdminContextType {
   applications: Application[];
+  fetchApplications: () => Promise<void>;
   addApplication: (app: Omit<Application, "id" | "date" | "status">) => void;
   updateStatus: (id: string, status: "pending" | "completed") => void;
   updateApplication: (id: string, data: Partial<Application>) => void;
@@ -53,30 +54,31 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const fetchApplications = async () => {
+    try {
+      const { data } = await api.get("/applications");
+      const mappedData = data.map((app: any) => ({
+        ...app,
+        id: app._id || app.id, // Map _id from backend to id
+      }));
+      setApplications(mappedData);
+      localStorage.setItem("pragalbh_admin_data", JSON.stringify(mappedData));
+    } catch (e) {
+      console.error("Failed to fetch applications", e);
+      // Fallback to LS
+      const saved = localStorage.getItem("pragalbh_admin_data");
+      if (saved) {
+        setApplications(JSON.parse(saved));
+      }
+    }
+  };
+
   // Load apps from API
   useEffect(() => {
-    const fetchApps = async () => {
-      try {
-        const { data } = await api.get("/applications");
-        const mappedData = data.map((app: any) => ({
-          ...app,
-          id: app._id || app.id, // Map _id from backend to id
-        }));
-        setApplications(mappedData);
-        localStorage.setItem("pragalbh_admin_data", JSON.stringify(mappedData));
-      } catch (e) {
-        console.error("Failed to fetch applications", e);
-        // Fallback to LS
-        const saved = localStorage.getItem("pragalbh_admin_data");
-        if (saved) {
-          setApplications(JSON.parse(saved));
-        }
-      }
-    };
 
     const token = localStorage.getItem("pragalbh_admin_token");
     if (token) {
-      fetchApps();
+      fetchApplications();
       fetchReviews();
     }
   }, []);
@@ -190,6 +192,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({
     <AdminContext.Provider
       value={{
         applications,
+        fetchApplications,
         addApplication,
         updateStatus,
         updateApplication,

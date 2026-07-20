@@ -17,6 +17,7 @@ import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminServices from "./pages/admin/AdminServices";
 import AdminReviews from "./pages/admin/AdminReviews";
+import AdminWhatsApp from "./pages/admin/AdminWhatsApp";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtected from "./components/admin/AdminAuth";
 import AutoLogout from "./components/admin/AutoLogout";
@@ -111,6 +112,7 @@ const App: React.FC = () => {
                       <Route path="dashboard" element={<AdminDashboard />} />
                       <Route path="services" element={<AdminServices />} />
                       <Route path="reviews" element={<AdminReviews />} />
+                      <Route path="whatsapp" element={<AdminWhatsApp />} />
                     </Route>
                   </Routes>
                 </div>
