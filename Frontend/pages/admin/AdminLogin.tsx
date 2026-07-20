@@ -211,7 +211,7 @@ const AdminLogin: React.FC = () => {
                 ) : (
                   <>
                     <LogIn className="h-5 w-5 mr-2" />
-                    Sign in to Dashboard
+                    Sign in to Dashboards
                   </>
                 )}
               </button>
