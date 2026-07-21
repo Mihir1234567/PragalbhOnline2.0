@@ -610,8 +610,8 @@ export const sendTemplateManual = async (req: Request, res: Response) => {
     );
     
     res.json({ success: true, messageId: response?.messages?.[0]?.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to send template manually", error);
-    res.status(500).json({ error: "Failed to send template manually" });
+    res.status(500).json({ error: error.message || "Failed to send template manually" });
   }
 };

@@ -192,9 +192,9 @@ const AdminWhatsApp: React.FC = () => {
       setShowTemplateModal(false);
       setSelectedTemplateForVariables(null);
       setTimeout(scrollToBottom, 100);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send template", error);
-      alert("Failed to send template");
+      alert(`Failed to send template: ${error?.response?.data?.error || error.message}`);
     } finally {
       setSendingTemplate(false);
     }
