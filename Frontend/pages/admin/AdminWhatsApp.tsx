@@ -61,8 +61,15 @@ const getRequestedServices = (messages: any[]) => {
   if (!messages || messages.length === 0) return [];
   const services = new Set<string>();
   messages.forEach(m => {
-    if (m.direction === 'outbound' && m.messageType === 'template' && m.content.startsWith('Sent Service Details Template for ')) {
-      services.add(m.content.replace('Sent Service Details Template for ', ''));
+    if (m.direction === 'outbound') {
+      if (m.messageType === 'template' && m.content.startsWith('Sent Service Details Template for ')) {
+        services.add(m.content.replace('Sent Service Details Template for ', '').trim());
+      } else if (m.messageType === 'text' && m.content.startsWith('📄 *')) {
+        const textMatch = m.content.match(/^📄 \*(.*?)\*/);
+        if (textMatch) {
+          services.add(textMatch[1].trim());
+        }
+      }
     }
   });
   return Array.from(services);
