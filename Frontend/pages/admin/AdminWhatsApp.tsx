@@ -505,11 +505,43 @@ const AdminWhatsApp: React.FC = () => {
                     <div>
                       <h3 className="font-semibold text-slate-800 dark:text-white flex items-center flex-wrap gap-2">
                         {activeContact.name || activeContact.phoneNumber}
-                        {activeContact.tags?.map((tag, i) => (
-                          <span key={i} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+                        {activeContact.tags?.slice(0, 3).map((tag, i) => (
+                          <button 
+                            key={i} 
+                            onClick={() => {
+                              setEditingContactId(activeContact._id);
+                              setEditContactForm({
+                                name: activeContact.name || "",
+                                phoneNumber: activeContact.phoneNumber,
+                                status: activeContact.status,
+                                dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
+                                tags: activeContact.tags?.join(", ") || "",
+                                notes: activeContact.notes || ""
+                              });
+                            }}
+                            className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                          >
                             {tag}
-                          </span>
+                          </button>
                         ))}
+                        {activeContact.tags && activeContact.tags.length > 3 && (
+                          <button 
+                            onClick={() => {
+                              setEditingContactId(activeContact._id);
+                              setEditContactForm({
+                                name: activeContact.name || "",
+                                phoneNumber: activeContact.phoneNumber,
+                                status: activeContact.status,
+                                dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
+                                tags: activeContact.tags?.join(", ") || "",
+                                notes: activeContact.notes || ""
+                              });
+                            }}
+                            className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                          >
+                            +{activeContact.tags.length - 3}
+                          </button>
+                        )}
                       </h3>
                       <span className="text-xs text-slate-500 flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1"><Phone size={12} /> {activeContact.phoneNumber}</span>
@@ -994,8 +1026,10 @@ const AdminWhatsApp: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                   {(() => {
                     let displayContacts = contacts.filter(c => {
-                      const matchesSearch = c.name?.toLowerCase().includes(contactsSearchQuery.toLowerCase()) || 
-                                            c.phoneNumber.includes(contactsSearchQuery);
+                      const sq = contactsSearchQuery.toLowerCase();
+                      const matchesSearch = c.name?.toLowerCase().includes(sq) || 
+                                            c.phoneNumber.includes(sq) ||
+                                            (c.tags && c.tags.some(tag => tag.toLowerCase().includes(sq)));
                       const matchesStatus = contactsStatusFilter === "all" || c.status === contactsStatusFilter;
                       return matchesSearch && matchesStatus;
                     });
