@@ -356,10 +356,10 @@ const AdminWhatsApp: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-slate-900 -mx-6 -mt-6">
       
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto scrollbar-hide">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto scrollbar-hide pt-2 px-6 gap-2">
         <button
           onClick={() => setActiveTab("chats")}
-          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "chats"
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
@@ -370,7 +370,7 @@ const AdminWhatsApp: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("contacts")}
-          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "contacts"
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
@@ -381,7 +381,7 @@ const AdminWhatsApp: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("services")}
-          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "services"
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
@@ -392,7 +392,7 @@ const AdminWhatsApp: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "analytics"
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
@@ -407,7 +407,7 @@ const AdminWhatsApp: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("quick_replies")}
-          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "quick_replies"
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
