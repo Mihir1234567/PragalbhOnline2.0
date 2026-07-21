@@ -71,43 +71,54 @@ const processMessageStatus = async (statusObj: any) => {
 };
 
 const processIncomingMessage = async (msgData: any, contacts: any[]) => {
-  const phoneNumber = msgData.from;
-  const msgType = msgData.type;
-
-  let customerName = "";
-  if (contacts && contacts.length > 0) {
-    customerName = contacts[0].profile?.name || "";
-  }
-
-  // Get or create contact
-  let contact = await WhatsAppContact.findOne({ phoneNumber });
-  let isNewContact = false;
-  if (!contact) {
-    contact = new WhatsAppContact({ 
-      phoneNumber, 
-      name: customerName, 
-      currentPage: 1,
-      status: "open",
-      unreadCount: 1
-    });
-    await contact.save();
-    isNewContact = true;
-  } else {
-    if (customerName && !contact.name) {
-      contact.name = customerName;
+  try {
+    const msgId = msgData.id;
+    if (msgId) {
+      const existingMsg = await WhatsAppMessage.findOne({ wamId: msgId, direction: "inbound" });
+      if (existingMsg) {
+        console.log(`Duplicate message ignored: ${msgId}`);
+        return;
+      }
     }
-    contact.unreadCount = (contact.unreadCount || 0) + 1;
-    contact.status = "open";
-    await contact.save();
-  }
 
-  // Save inbound message
-  const newMsg = await WhatsAppMessage.create({
-    contactId: contact._id,
-    direction: "inbound",
-    content: JSON.stringify(msgData),
-    messageType: msgType,
-  });
+    const phoneNumber = msgData.from;
+    const msgType = msgData.type;
+
+    let customerName = "";
+    if (contacts && contacts.length > 0) {
+      customerName = contacts[0].profile?.name || "";
+    }
+
+    // Get or create contact
+    let contact = await WhatsAppContact.findOne({ phoneNumber });
+    let isNewContact = false;
+    if (!contact) {
+      contact = new WhatsAppContact({ 
+        phoneNumber, 
+        name: customerName, 
+        currentPage: 1,
+        status: "open",
+        unreadCount: 1
+      });
+      await contact.save();
+      isNewContact = true;
+    } else {
+      if (customerName && !contact.name) {
+        contact.name = customerName;
+      }
+      contact.unreadCount = (contact.unreadCount || 0) + 1;
+      contact.status = "open";
+      await contact.save();
+    }
+
+    // Save inbound message
+    const newMsg = await WhatsAppMessage.create({
+      contactId: contact._id,
+      direction: "inbound",
+      content: JSON.stringify(msgData),
+      messageType: msgType,
+      wamId: msgId,
+    });
 
   const io = getIo();
   if (io) {
@@ -158,7 +169,16 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         const response = await sendServicesList(phoneNumber, services, 1);
         await saveOutboundMessage(contact._id, "Sent services list page 1", "interactive", response?.messages?.[0]?.id);
       } else {
-        const service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        const escapedTitle = buttonTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        if (!service) {
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(`^${escapedTitle}`, 'i') } });
+        }
+        if (!service) {
+           // Also try matching if DB title contains the button title (to handle truncation)
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(escapedTitle, 'i') } });
+        }
+        
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
@@ -187,7 +207,12 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
           await saveOutboundMessage(contact._id, "Sent welcome_services", "template", response?.messages?.[0]?.id);
         }
     } else {
-        const service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        const escapedTitle = buttonTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(`^${escapedTitle}`, 'i') } });
+        if (!service) {
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(escapedTitle, 'i') } });
+        }
+        
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
@@ -195,6 +220,8 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
           await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text", response?.messages?.[0]?.id);
         }
     }
+  } catch (error) {
+    console.error("Error in processIncomingMessage:", error);
   }
 };
 

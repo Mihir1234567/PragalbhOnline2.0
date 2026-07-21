@@ -123,8 +123,8 @@ export const sendServiceDetailsTemplate = (phoneNumber: string, serviceDetails: 
         {
           type: "body",
           parameters: [
-            { type: "text", text: serviceDetails.title },
-            { type: "text", text: serviceDetails.documents.join(", ") },
+            { type: "text", text: serviceDetails.title || "માહિતી ઉપલબ્ધ નથી" },
+            { type: "text", text: (serviceDetails.documents && serviceDetails.documents.length > 0) ? serviceDetails.documents.join(", ") : "માહિતી ઉપલબ્ધ નથી" },
           ],
         },
       ],
