@@ -163,7 +163,8 @@ const AdminWhatsApp: React.FC = () => {
   }, [analyticsDateRange]);
 
   useEffect(() => {
-    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000";
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+    const backendUrl = apiBase === "/api" ? undefined : apiBase.replace('/api', '');
     const socket = io(backendUrl);
 
     socket.on("whatsapp_new_message", (data: { contactId: string, message: any }) => {
