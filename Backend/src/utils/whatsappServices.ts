@@ -15,7 +15,7 @@ export const sendWhatsAppMessage = async (phoneNumber: string, payload: any) => 
     return data;
   } catch (error: any) {
     console.error("Meta API Error:", error?.response?.data || error.message);
-    throw error;
+    throw error?.response?.data || error;
   }
 };
 
