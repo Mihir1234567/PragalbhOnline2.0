@@ -76,6 +76,7 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
 
   // Get or create contact
   let contact = await WhatsAppContact.findOne({ phoneNumber });
+  let isNewContact = false;
   if (!contact) {
     contact = new WhatsAppContact({ 
       phoneNumber, 
@@ -85,6 +86,7 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
       unreadCount: 1
     });
     await contact.save();
+    isNewContact = true;
   } else {
     if (customerName && !contact.name) {
       contact.name = customerName;
@@ -101,6 +103,12 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
     content: JSON.stringify(msgData),
     messageType: msgType,
   });
+
+  if (isNewContact) {
+    const response = await sendWelcomeTemplate(phoneNumber);
+    await saveOutboundMessage(contact._id, "Sent Welcome Template", "template", response?.messages?.[0]?.id);
+    return;
+  }
 
   if (msgType === "text") {
     const textBody = (msgData.text?.body || "").toLowerCase();
