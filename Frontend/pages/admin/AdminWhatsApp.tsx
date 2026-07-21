@@ -32,6 +32,7 @@ interface WhatsAppAnalytics {
   totalInbound: number;
   totalOutbound: number;
   topServices: { title: string; count: number }[];
+  recentServiceRequests: { userName: string; phoneNumber: string; serviceTitle: string; timestamp: string }[];
 }
 
 const AdminWhatsApp: React.FC = () => {
@@ -575,35 +576,66 @@ const AdminWhatsApp: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Requested Services</h3>
-            {analytics.topServices.length > 0 ? (
-              <div className="space-y-6">
-                {analytics.topServices.map((service, index) => {
-                  const maxCount = analytics.topServices[0].count || 1;
-                  const percentage = Math.round((service.count / maxCount) * 100);
-                  return (
-                    <div key={index} className="flex flex-col gap-2">
-                      <div className="flex justify-between items-end text-sm">
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{service.title}</span>
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">{service.count} requests</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Requested Services</h3>
+              {analytics.topServices.length > 0 ? (
+                <div className="space-y-6">
+                  {analytics.topServices.map((service, index) => {
+                    const maxCount = analytics.topServices[0].count || 1;
+                    const percentage = Math.round((service.count / maxCount) * 100);
+                    return (
+                      <div key={index} className="flex flex-col gap-2">
+                        <div className="flex justify-between items-end text-sm">
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{service.title}</span>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">{service.count} requests</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                          <div 
+                            className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out" 
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                        <div 
-                          className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out" 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                  <div className="mb-2">No service requests recorded yet.</div>
+                  <div className="text-sm">Once users interact with the bot, analytics will appear here.</div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col max-h-[600px]">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 shrink-0">Recent Service Requests</h3>
+              {analytics.recentServiceRequests && analytics.recentServiceRequests.length > 0 ? (
+                <div className="overflow-y-auto pr-2 -mr-2 space-y-4 flex-1">
+                  {analytics.recentServiceRequests.map((request, index) => (
+                    <div key={index} className="flex items-start justify-between border-b border-slate-100 dark:border-slate-700/50 pb-4 last:border-0 last:pb-0">
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-white text-sm">{request.userName}</div>
+                        <div className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{request.phoneNumber}</div>
+                        <div className="text-indigo-600 dark:text-indigo-400 font-medium text-sm mt-1">{request.serviceTitle}</div>
+                      </div>
+                      <div className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded">
+                        {new Date(request.timestamp).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-                <div className="mb-2">No service requests recorded yet.</div>
-                <div className="text-sm">Once users interact with the bot, analytics will appear here.</div>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
+                  <div className="mb-2">No recent service requests.</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

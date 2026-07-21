@@ -232,12 +232,47 @@ export const getAnalytics = async (req: Request, res: Response) => {
       count: s.count,
     }));
 
+    const recentRequestsRaw = await WhatsAppMessage.aggregate([
+      {
+        $match: {
+          direction: "outbound",
+          messageType: "template",
+          content: { $regex: /^Sent Service Details Template for /i },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $limit: 50,
+      },
+      {
+        $lookup: {
+          from: "whatsappcontacts",
+          localField: "contactId",
+          foreignField: "_id",
+          as: "contact",
+        },
+      },
+      {
+        $unwind: "$contact",
+      },
+    ]);
+
+    const recentServiceRequests = recentRequestsRaw.map((msg) => ({
+      userName: msg.contact.name || "Unknown",
+      phoneNumber: msg.contact.phoneNumber,
+      serviceTitle: msg.content.replace(/Sent Service Details Template for /i, "").trim(),
+      timestamp: msg.createdAt,
+    }));
+
     res.json({
       totalUsers,
       totalMessages: totalInbound + totalOutbound,
       totalInbound,
       totalOutbound,
       topServices,
+      recentServiceRequests,
     });
   } catch (error) {
     console.error("Failed to fetch analytics", error);
