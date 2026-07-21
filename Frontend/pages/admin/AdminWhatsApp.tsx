@@ -45,7 +45,7 @@ interface WhatsAppAnalytics {
   totalMessages: number;
   totalInbound: number;
   totalOutbound: number;
-  topServices: { title: string; count: number }[];
+  allServices: { title: string; count: number; contacts: { name: string; phoneNumber: string }[] }[];
   recentServiceRequests: { userName: string; phoneNumber: string; serviceTitle: string; timestamp: string }[];
 }
 
@@ -101,6 +101,8 @@ const AdminWhatsApp: React.FC = () => {
 
   // Analytics State
   const [analytics, setAnalytics] = useState<WhatsAppAnalytics | null>(null);
+  const [servicesSearchQuery, setServicesSearchQuery] = useState("");
+  const [servicesSortBy, setServicesSortBy] = useState<"most" | "least" | "name_asc" | "name_desc">("most");
 
   // Contacts Tab State
   const [contactsSearchQuery, setContactsSearchQuery] = useState("");
@@ -956,36 +958,100 @@ const AdminWhatsApp: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Requested Services</h3>
-              {analytics.topServices.length > 0 ? (
-                <div className="space-y-6">
-                  {analytics.topServices.map((service, index) => {
-                    const maxCount = analytics.topServices[0].count || 1;
-                    const percentage = Math.round((service.count / maxCount) * 100);
-                    return (
-                      <div key={index} className="flex flex-col gap-2">
-                        <div className="flex justify-between items-end text-sm">
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{service.title}</span>
-                          <span className="text-slate-500 dark:text-slate-400 font-medium">{service.count} requests</span>
-                        </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                          <div 
-                            className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out" 
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Service Requests</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search services or contacts..."
+                    value={servicesSearchQuery}
+                    onChange={(e) => setServicesSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64 text-slate-800 dark:text-white"
+                  />
                 </div>
-              ) : (
-                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-                  <div className="mb-2">No service requests recorded yet.</div>
-                  <div className="text-sm">Once users interact with the bot, analytics will appear here.</div>
-                </div>
-              )}
+                <select
+                  value={servicesSortBy}
+                  onChange={(e) => setServicesSortBy(e.target.value as any)}
+                  className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                >
+                  <option value="most">Most Requested</option>
+                  <option value="least">Least Requested</option>
+                  <option value="name_asc">Name (A-Z)</option>
+                  <option value="name_desc">Name (Z-A)</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="py-4 px-6">Service Name</th>
+                    <th className="py-4 px-6 text-center w-32">Requests</th>
+                    <th className="py-4 px-6">Requested By</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                  {(() => {
+                    let displayServices = [...(analytics.allServices || [])];
+                    if (servicesSearchQuery) {
+                      const sq = servicesSearchQuery.toLowerCase();
+                      displayServices = displayServices.filter(s => {
+                        if (s.title.toLowerCase().includes(sq)) return true;
+                        if (s.contacts && s.contacts.some(c => c.name?.toLowerCase().includes(sq) || c.phoneNumber.includes(sq))) return true;
+                        return false;
+                      });
+                    }
+                    
+                    displayServices.sort((a, b) => {
+                      if (servicesSortBy === "most") return b.count - a.count;
+                      if (servicesSortBy === "least") return a.count - b.count;
+                      if (servicesSortBy === "name_asc") return a.title.localeCompare(b.title);
+                      if (servicesSortBy === "name_desc") return b.title.localeCompare(a.title);
+                      return 0;
+                    });
+                    
+                    if (displayServices.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={3} className="py-12 text-center text-slate-500 dark:text-slate-400">
+                            No service requests found.
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return displayServices.map((service, index) => (
+                      <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-4 px-6 font-medium text-slate-800 dark:text-slate-200">
+                          {service.title}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <span className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                            {service.count}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-2">
+                            {service.contacts && service.contacts.map((contact, cIndex) => (
+                              <span key={cIndex} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                                <User size={12} className="text-slate-400" />
+                                {contact.name || contact.phoneNumber}
+                              </span>
+                            ))}
+                            {(!service.contacts || service.contacts.length === 0) && (
+                              <span className="text-slate-400 text-xs italic">No contact data</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

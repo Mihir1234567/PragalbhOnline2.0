@@ -228,7 +228,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const totalInbound = await WhatsAppMessage.countDocuments({ direction: "inbound" });
     const totalOutbound = await WhatsAppMessage.countDocuments({ direction: "outbound" });
 
-    const topServicesRaw = await WhatsAppMessage.aggregate([
+    const allServicesRaw = await WhatsAppMessage.aggregate([
       {
         $match: {
           direction: "outbound",
@@ -240,19 +240,26 @@ export const getAnalytics = async (req: Request, res: Response) => {
         $group: {
           _id: "$content",
           count: { $sum: 1 },
+          contactIds: { $addToSet: "$contactId" },
+        },
+      },
+      {
+        $lookup: {
+          from: "whatsappcontacts",
+          localField: "contactIds",
+          foreignField: "_id",
+          as: "contacts",
         },
       },
       {
         $sort: { count: -1 },
-      },
-      {
-        $limit: 10,
-      },
+      }
     ]);
 
-    const topServices = topServicesRaw.map((s) => ({
+    const allServices = allServicesRaw.map((s) => ({
       title: s._id.replace(/Sent Service Details Template for /i, "").trim(),
       count: s.count,
+      contacts: s.contacts.map((c: any) => ({ name: c.name, phoneNumber: c.phoneNumber })),
     }));
 
     const recentRequestsRaw = await WhatsAppMessage.aggregate([
@@ -294,7 +301,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
       totalMessages: totalInbound + totalOutbound,
       totalInbound,
       totalOutbound,
-      topServices,
+      allServices,
       recentServiceRequests,
     });
   } catch (error) {
