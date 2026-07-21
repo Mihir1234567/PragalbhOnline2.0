@@ -233,17 +233,24 @@ async function handleServiceRequest(contact: any, phoneNumber: string, serviceDe
     }
 
     if ((contact.servicesRequestedToday || 0) >= dailyLimit) {
-      const response = await sendLimitReachedTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template", response?.messages?.[0]?.id);
+      const text = `⚠️ *મર્યાદા પૂર્ણ*\n\nતમે આજની સેવાની મર્યાદા (${dailyLimit}) પૂર્ણ કરી છે. કૃપા કરીને કાલે ફરી પ્રયાસ કરો.`;
+      const response = await sendTextMessage(phoneNumber, text);
+      await saveOutboundMessage(contact._id, text, "text", response?.messages?.[0]?.id);
       return;
     }
   }
 
-  const response = await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
+  const docsList = (serviceDetails.documents && serviceDetails.documents.length > 0) 
+    ? serviceDetails.documents.map((d: string) => `• ${d}`).join('\n') 
+    : "માહિતી ઉપલબ્ધ નથી";
+  
+  const textMsg = `📄 *${serviceDetails.title}*\n\n*જરૂરી દસ્તાવેજોની યાદી:*\n${docsList}`;
+  const response = await sendTextMessage(phoneNumber, textMsg);
+  
   contact.lastServiceViewedAt = new Date();
   contact.servicesRequestedToday = (contact.servicesRequestedToday || 0) + 1;
   await contact.save();
-  await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
+  await saveOutboundMessage(contact._id, textMsg, "text", response?.messages?.[0]?.id);
 };
 
 async function saveOutboundMessage(contactId: any, content: string, messageType: string, wamId?: string) {
@@ -332,8 +339,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
           $match: {
             ...dateFilter,
             direction: "outbound",
-            messageType: "template",
-            content: { $regex: /^Sent Service Details Template for /i },
+            $or: [
+              {
+                messageType: "template",
+                content: { $regex: /^Sent Service Details Template for /i }
+              },
+              {
+                messageType: "text",
+                content: { $regex: /^📄 \*/ }
+              }
+            ]
           },
         },
         {
@@ -357,8 +372,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
           $match: {
             ...dateFilter,
             direction: "outbound",
-            messageType: "template",
-            content: { $regex: /^Sent Service Details Template for /i },
+            $or: [
+              {
+                messageType: "template",
+                content: { $regex: /^Sent Service Details Template for /i }
+              },
+              {
+                messageType: "text",
+                content: { $regex: /^📄 \*/ }
+              }
+            ]
           },
         },
         { $sort: { createdAt: -1 } },
@@ -392,7 +415,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
     });
 
     allServicesRaw.forEach((s) => {
-      const parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
+      let parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
+      const textMatch = s._id.match(/^📄 \*(.*?)\*/);
+      if (textMatch) {
+        parsedTitle = textMatch[1].trim();
+      }
       const lowerTitle = parsedTitle.toLowerCase();
       const mappedContacts = s.contacts.map((c: any) => ({ name: c.name, phoneNumber: c.phoneNumber }));
 
@@ -411,12 +438,19 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const allServices = Array.from(servicesMap.values()).sort((a: any, b: any) => b.count - a.count);
 
-    const recentServiceRequests = recentRequestsRaw.map((msg) => ({
-      userName: msg.contact.name || "Unknown",
-      phoneNumber: msg.contact.phoneNumber,
-      serviceTitle: msg.content.replace(/Sent Service Details Template for /i, "").trim(),
-      timestamp: msg.createdAt,
-    }));
+    const recentServiceRequests = recentRequestsRaw.map((msg) => {
+      let serviceTitle = msg.content.replace(/Sent Service Details Template for /i, "").trim();
+      const textMatch = msg.content.match(/^📄 \*(.*?)\*/);
+      if (textMatch) {
+        serviceTitle = textMatch[1].trim();
+      }
+      return {
+        userName: msg.contact.name || "Unknown",
+        phoneNumber: msg.contact.phoneNumber,
+        serviceTitle,
+        timestamp: msg.createdAt,
+      };
+    });
 
     res.json({
       totalUsers,
