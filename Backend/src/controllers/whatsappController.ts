@@ -577,11 +577,11 @@ export const getTemplates = async (req: Request, res: Response) => {
 
 export const sendTemplateManual = async (req: Request, res: Response) => {
   try {
-    const { phoneNumber, templateName, contactId } = req.body;
+    const { phoneNumber, templateName, language, contactId } = req.body;
     
     // In a real scenario, you'd construct the full template payload based on the selected template's required params.
     // Here we'll just send it as a simple text if we don't know the exact structure, or pass it to sendTemplate.
-    const response = await sendTemplate(phoneNumber, templateName);
+    const response = await sendTemplate(phoneNumber, templateName, language);
     
     await saveOutboundMessage(
       contactId, 

@@ -35,8 +35,8 @@ export const sendWhatsAppMessage = async (phoneNumber: string, payload: any) => 
   }
 };
 
-export const sendTemplate = async (phoneNumber: string, templateName: string) => {
-  const langCode = ["services_2", "services_3"].includes(templateName) ? "en" : "gu";
+export const sendTemplate = async (phoneNumber: string, templateName: string, language?: string) => {
+  const langCode = language || (["services_2", "services_3"].includes(templateName) ? "en" : "gu");
   const payload = {
     messaging_product: "whatsapp",
     to: phoneNumber,

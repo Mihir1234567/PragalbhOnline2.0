@@ -157,7 +157,7 @@ const AdminWhatsApp: React.FC = () => {
   }, [activeContact?.messages.length, activeTab]);
 
   // Chat Handlers
-  const handleSendTemplate = async (templateName: string) => {
+  const handleSendTemplate = async (templateName: string, language: string) => {
     if (!activeContactId) return;
     setSendingTemplate(true);
     try {
@@ -167,6 +167,7 @@ const AdminWhatsApp: React.FC = () => {
       const res = await api.post("/whatsapp/send-template", {
         phoneNumber: contact.phoneNumber,
         templateName,
+        language,
         contactId: contact._id
       });
       
@@ -1563,7 +1564,7 @@ const AdminWhatsApp: React.FC = () => {
                     <div 
                       key={tpl.id} 
                       className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col"
-                      onClick={() => handleSendTemplate(tpl.name)}
+                      onClick={() => handleSendTemplate(tpl.name, tpl.language)}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-semibold text-slate-800 dark:text-white truncate">{tpl.name}</span>
