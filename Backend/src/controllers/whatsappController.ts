@@ -132,8 +132,14 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
     if (textBody === "hi" || textBody === "hello") {
       contact.currentPage = 1;
       await contact.save();
-      const response = await sendWelcomeTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent Welcome Template", "template", response?.messages?.[0]?.id);
+      
+      const welcomeText = "પ્રગલ્ભ ઓનલાઈન માં તમારું સ્વાગત છે! 🙏";
+      const textRes = await sendTextMessage(phoneNumber, welcomeText);
+      await saveOutboundMessage(contact._id, welcomeText, "text", textRes?.messages?.[0]?.id);
+
+      const services = await WhatsAppBotService.find().sort({ order: 1 });
+      const listRes = await sendServicesList(phoneNumber, services, 1);
+      await saveOutboundMessage(contact._id, "Sent services_1", "template", listRes?.messages?.[0]?.id);
     } else if (textBody === "test") {
       const response = await sendLimitReachedTemplate(phoneNumber);
       await saveOutboundMessage(contact._id, "Sent limit reached template", "template", response?.messages?.[0]?.id);
