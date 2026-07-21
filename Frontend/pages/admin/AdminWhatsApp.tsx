@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter } from "lucide-react";
+import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -918,20 +918,40 @@ const AdminWhatsApp: React.FC = () => {
           <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">WhatsApp Engagement Analytics</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
-              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Total Unique Users</div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-slate-500 dark:text-slate-400 font-medium">Total Unique Users</div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                  <Users size={20} />
+                </div>
+              </div>
               <div className="text-3xl font-bold text-slate-800 dark:text-white">{analytics.totalUsers.toLocaleString()}</div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
-              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Total Messages</div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-slate-500 dark:text-slate-400 font-medium">Total Messages</div>
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <MessageSquare size={20} />
+                </div>
+              </div>
               <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{analytics.totalMessages.toLocaleString()}</div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
-              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Inbound (Received)</div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-slate-500 dark:text-slate-400 font-medium">Inbound (Received)</div>
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <ArrowDownLeft size={20} />
+                </div>
+              </div>
               <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{analytics.totalInbound.toLocaleString()}</div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
-              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Outbound (Sent)</div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-slate-500 dark:text-slate-400 font-medium">Outbound (Sent)</div>
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <ArrowUpRight size={20} />
+                </div>
+              </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.totalOutbound.toLocaleString()}</div>
             </div>
           </div>
