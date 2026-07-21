@@ -48,8 +48,8 @@ interface WhatsAppAnalytics {
 }
 
 const AdminWhatsApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"chats" | "services" | "analytics">(() => {
-    return (localStorage.getItem("whatsappActiveTab") as "chats" | "services" | "analytics") || "chats";
+  const [activeTab, setActiveTab] = useState<"chats" | "services" | "analytics" | "quick_replies">(() => {
+    return (localStorage.getItem("whatsappActiveTab") as "chats" | "services" | "analytics" | "quick_replies") || "chats";
   });
 
   useEffect(() => {
@@ -71,6 +71,10 @@ const AdminWhatsApp: React.FC = () => {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [editingNotes, setEditingNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
+
+  // Quick Replies State
+  const [showQuickReplyForm, setShowQuickReplyForm] = useState(false);
+  const [quickReplyForm, setQuickReplyForm] = useState({ title: "", text: "" });
 
   // Services State
   const [services, setServices] = useState<BotService[]>([]);
@@ -261,6 +265,30 @@ const AdminWhatsApp: React.FC = () => {
     }
   };
 
+  // Quick Replies Handlers
+  const handleQuickReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post("/whatsapp/quick-replies", quickReplyForm);
+      setShowQuickReplyForm(false);
+      setQuickReplyForm({ title: "", text: "" });
+      fetchData();
+    } catch (error) {
+      console.error("Failed to save quick reply", error);
+    }
+  };
+
+  const handleDeleteQuickReply = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this quick reply?")) {
+      try {
+        await api.delete(`/whatsapp/quick-replies/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error("Failed to delete quick reply", error);
+      }
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading...</div>;
   }
@@ -306,6 +334,17 @@ const AdminWhatsApp: React.FC = () => {
                 <div className="w-1 bg-current h-4"></div>
             </div>
             Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab("quick_replies")}
+            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
+              activeTab === "quick_replies"
+                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+            }`}
+          >
+            <Zap size={18} />
+            Quick Replies
           </button>
       </div>
 
@@ -840,6 +879,94 @@ const AdminWhatsApp: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Quick Replies Tab */}
+      {activeTab === "quick_replies" && (
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Quick Replies Management</h2>
+            <button
+              onClick={() => setShowQuickReplyForm(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            >
+              <Plus size={18} />
+              Add Quick Reply
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {quickReplies.map((qr) => (
+              <div key={qr._id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-semibold text-slate-800 dark:text-white">{qr.title}</h3>
+                  <button 
+                    onClick={() => handleDeleteQuickReply(qr._id)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                    title="Delete Quick Reply"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-sm flex-1 whitespace-pre-wrap">{qr.text}</div>
+              </div>
+            ))}
+            
+            {quickReplies.length === 0 && !showQuickReplyForm && (
+              <div className="col-span-full py-12 text-center text-slate-500">
+                <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Zap size={24} className="text-slate-400" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-1">No Quick Replies Yet</h3>
+                <p>Create predefined messages to send to customers instantly.</p>
+              </div>
+            )}
+          </div>
+          
+          {showQuickReplyForm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                  <h3 className="font-bold text-lg text-slate-800 dark:text-white">Create Quick Reply</h3>
+                  <button onClick={() => setShowQuickReplyForm(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <form id="quick-reply-form" onSubmit={handleQuickReplySubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={quickReplyForm.title}
+                        onChange={(e) => setQuickReplyForm({ ...quickReplyForm, title: e.target.value })}
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                        placeholder="e.g. Welcome Message"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Message Text</label>
+                      <textarea
+                        required
+                        rows={5}
+                        value={quickReplyForm.text}
+                        onChange={(e) => setQuickReplyForm({ ...quickReplyForm, text: e.target.value })}
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white resize-none"
+                        placeholder="Type the full message here..."
+                      />
+                    </div>
+                  </form>
+                </div>
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowQuickReplyForm(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button type="submit" form="quick-reply-form" className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Notes Modal */}
       {showNotesModal && activeContact && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
