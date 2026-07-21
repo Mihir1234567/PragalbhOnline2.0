@@ -237,6 +237,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const totalInbound = await WhatsAppMessage.countDocuments({ direction: "inbound" });
     const totalOutbound = await WhatsAppMessage.countDocuments({ direction: "outbound" });
 
+    const actualServices = await WhatsAppBotService.find();
+    const servicesMap = new Map();
+    actualServices.forEach(s => {
+      servicesMap.set(s.title.toLowerCase().trim(), {
+        title: s.title,
+        count: 0,
+        contacts: []
+      });
+    });
+
     const allServicesRaw = await WhatsAppMessage.aggregate([
       {
         $match: {
@@ -259,17 +269,28 @@ export const getAnalytics = async (req: Request, res: Response) => {
           foreignField: "_id",
           as: "contacts",
         },
-      },
-      {
-        $sort: { count: -1 },
       }
     ]);
 
-    const allServices = allServicesRaw.map((s) => ({
-      title: s._id.replace(/Sent Service Details Template for /i, "").trim(),
-      count: s.count,
-      contacts: s.contacts.map((c: any) => ({ name: c.name, phoneNumber: c.phoneNumber })),
-    }));
+    allServicesRaw.forEach((s) => {
+      const parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
+      const lowerTitle = parsedTitle.toLowerCase();
+      const mappedContacts = s.contacts.map((c: any) => ({ name: c.name, phoneNumber: c.phoneNumber }));
+
+      if (servicesMap.has(lowerTitle)) {
+        const item = servicesMap.get(lowerTitle);
+        item.count += s.count;
+        item.contacts.push(...mappedContacts);
+      } else {
+        servicesMap.set(lowerTitle, {
+          title: parsedTitle,
+          count: s.count,
+          contacts: mappedContacts
+        });
+      }
+    });
+
+    const allServices = Array.from(servicesMap.values()).sort((a: any, b: any) => b.count - a.count);
 
     const recentRequestsRaw = await WhatsAppMessage.aggregate([
       {
@@ -602,9 +623,14 @@ export const sendTemplateManual = async (req: Request, res: Response) => {
     
     const response = await sendTemplate(phoneNumber, templateName, language, components);
     
+    let contentStr = `Sent template: ${templateName}`;
+    if (templateName === "service_details" && variables && variables[0]) {
+      contentStr = `Sent Service Details Template for ${variables[0]}`;
+    }
+    
     await saveOutboundMessage(
       contactId, 
-      `Sent template: ${templateName}`, 
+      contentStr, 
       "template", 
       response?.messages?.[0]?.id
     );
