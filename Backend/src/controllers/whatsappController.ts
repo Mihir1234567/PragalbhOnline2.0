@@ -41,6 +41,11 @@ export const handleWebhook = async (req: Request, res: Response) => {
               await processIncomingMessage(msg, value.contacts || []);
             }
           }
+          if (value.statuses) {
+            for (const statusObj of value.statuses) {
+              await processMessageStatus(statusObj);
+            }
+          }
         }
       }
     }
@@ -48,6 +53,15 @@ export const handleWebhook = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error processing webhook:", error);
     res.status(500).send("Server Error");
+  }
+};
+
+const processMessageStatus = async (statusObj: any) => {
+  const wamId = statusObj.id;
+  const status = statusObj.status; // 'sent', 'delivered', 'read', 'failed'
+  
+  if (wamId && status) {
+    await WhatsAppMessage.updateOne({ wamId }, { status });
   }
 };
 
@@ -63,10 +77,20 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
   // Get or create contact
   let contact = await WhatsAppContact.findOne({ phoneNumber });
   if (!contact) {
-    contact = new WhatsAppContact({ phoneNumber, name: customerName, currentPage: 1 });
+    contact = new WhatsAppContact({ 
+      phoneNumber, 
+      name: customerName, 
+      currentPage: 1,
+      status: "open",
+      unreadCount: 1
+    });
     await contact.save();
-  } else if (customerName && !contact.name) {
-    contact.name = customerName;
+  } else {
+    if (customerName && !contact.name) {
+      contact.name = customerName;
+    }
+    contact.unreadCount = (contact.unreadCount || 0) + 1;
+    contact.status = "open";
     await contact.save();
   }
 
@@ -83,14 +107,14 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
     if (textBody === "hi" || textBody === "hello") {
       contact.currentPage = 1;
       await contact.save();
-      await sendWelcomeTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent Welcome Template", "template");
+      const response = await sendWelcomeTemplate(phoneNumber);
+      await saveOutboundMessage(contact._id, "Sent Welcome Template", "template", response?.messages?.[0]?.id);
     } else if (textBody === "test") {
-      await sendLimitReachedTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent limit reached template", "template");
+      const response = await sendLimitReachedTemplate(phoneNumber);
+      await saveOutboundMessage(contact._id, "Sent limit reached template", "template", response?.messages?.[0]?.id);
     } else if (textBody === "test2") {
-      await sendTextMessage(phoneNumber, "આ એક સાદો ટેસ્ટ મેસેજ છે. જો આ મેસેજ આવે તો સમજવું કે ફ્રી-ફોર્મ મેસેજ જાય છે પણ ટેમ્પલેટ નથી જતા.");
-      await saveOutboundMessage(contact._id, "Sent text message", "text");
+      const response = await sendTextMessage(phoneNumber, "આ એક સાદો ટેસ્ટ મેસેજ છે. જો આ મેસેજ આવે તો સમજવું કે ફ્રી-ફોર્મ મેસેજ જાય છે પણ ટેમ્પલેટ નથી જતા.");
+      await saveOutboundMessage(contact._id, "Sent text message", "text", response?.messages?.[0]?.id);
     }
   } else if (msgType === "interactive") {
     const interactiveData = msgData.interactive || {};
@@ -100,8 +124,8 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         const page = parseInt(listId.split("_")[1], 10);
         if (!isNaN(page)) {
           const services = await WhatsAppBotService.find().sort({ order: 1 });
-          await sendServicesList(phoneNumber, services, page);
-          await saveOutboundMessage(contact._id, `Sent services list page ${page}`, "interactive");
+          const response = await sendServicesList(phoneNumber, services, page);
+          await saveOutboundMessage(contact._id, `Sent services list page ${page}`, "interactive", response?.messages?.[0]?.id);
         }
       } else {
         const service = await WhatsAppBotService.findById(listId);
@@ -115,26 +139,26 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         if (contact.currentPage === 1) {
           contact.currentPage = 2;
           await contact.save();
-          await sendTemplate(phoneNumber, "services_2");
-          await saveOutboundMessage(contact._id, "Sent services_2", "template");
+          const response = await sendTemplate(phoneNumber, "services_2");
+          await saveOutboundMessage(contact._id, "Sent services_2", "template", response?.messages?.[0]?.id);
         } else if (contact.currentPage === 2) {
           contact.currentPage = 3;
           await contact.save();
-          await sendTemplate(phoneNumber, "services_3");
-          await saveOutboundMessage(contact._id, "Sent services_3", "template");
+          const response = await sendTemplate(phoneNumber, "services_3");
+          await saveOutboundMessage(contact._id, "Sent services_3", "template", response?.messages?.[0]?.id);
         } else {
           contact.currentPage = 1;
           await contact.save();
-          await sendTemplate(phoneNumber, "welcome_services");
-          await saveOutboundMessage(contact._id, "Sent welcome_services", "template");
+          const response = await sendTemplate(phoneNumber, "welcome_services");
+          await saveOutboundMessage(contact._id, "Sent welcome_services", "template", response?.messages?.[0]?.id);
         }
       } else {
         const service = await WhatsAppBotService.findOne({ title: buttonTitle });
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
-          await sendTextMessage(phoneNumber, "Service not found. Please try again.");
-          await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text");
+          const response = await sendTextMessage(phoneNumber, "Service not found. Please try again.");
+          await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text", response?.messages?.[0]?.id);
         }
       }
     }
@@ -144,26 +168,26 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         if (contact.currentPage === 1) {
           contact.currentPage = 2;
           await contact.save();
-          await sendTemplate(phoneNumber, "services_2");
-          await saveOutboundMessage(contact._id, "Sent services_2", "template");
+          const response = await sendTemplate(phoneNumber, "services_2");
+          await saveOutboundMessage(contact._id, "Sent services_2", "template", response?.messages?.[0]?.id);
         } else if (contact.currentPage === 2) {
           contact.currentPage = 3;
           await contact.save();
-          await sendTemplate(phoneNumber, "services_3");
-          await saveOutboundMessage(contact._id, "Sent services_3", "template");
+          const response = await sendTemplate(phoneNumber, "services_3");
+          await saveOutboundMessage(contact._id, "Sent services_3", "template", response?.messages?.[0]?.id);
         } else {
           contact.currentPage = 1;
           await contact.save();
-          await sendTemplate(phoneNumber, "welcome_services");
-          await saveOutboundMessage(contact._id, "Sent welcome_services", "template");
+          const response = await sendTemplate(phoneNumber, "welcome_services");
+          await saveOutboundMessage(contact._id, "Sent welcome_services", "template", response?.messages?.[0]?.id);
         }
     } else {
         const service = await WhatsAppBotService.findOne({ title: buttonTitle });
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
-          await sendTextMessage(phoneNumber, "Service not found. Please try again.");
-          await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text");
+          const response = await sendTextMessage(phoneNumber, "Service not found. Please try again.");
+          await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text", response?.messages?.[0]?.id);
         }
     }
   }
@@ -171,29 +195,31 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
 
 const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDetails: any) => {
   if (!serviceDetails) {
-    await sendTextMessage(phoneNumber, "Service not found.");
-    await saveOutboundMessage(contact._id, "Service not found.", "text");
+    const response = await sendTextMessage(phoneNumber, "Service not found.");
+    await saveOutboundMessage(contact._id, "Service not found.", "text", response?.messages?.[0]?.id);
     return;
   }
 
   const timeThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
   if (contact.lastServiceViewedAt && contact.lastServiceViewedAt >= timeThreshold) {
-    await sendLimitReachedTemplate(phoneNumber);
-    await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template");
+    const response = await sendLimitReachedTemplate(phoneNumber);
+    await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template", response?.messages?.[0]?.id);
   } else {
-    await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
+    const response = await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
     contact.lastServiceViewedAt = new Date();
     await contact.save();
-    await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template");
+    await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
   }
 };
 
-const saveOutboundMessage = async (contactId: any, content: string, messageType: string) => {
+const saveOutboundMessage = async (contactId: any, content: string, messageType: string, wamId?: string) => {
   await WhatsAppMessage.create({
     contactId,
     direction: "outbound",
     content,
     messageType,
+    wamId,
+    status: wamId ? "sent" : undefined
   });
 };
 
@@ -309,7 +335,8 @@ export const sendManualMessage = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Contact not found" });
     }
 
-    await sendTextMessage(contact.phoneNumber, text);
+    const response = await sendTextMessage(contact.phoneNumber, text);
+    const wamId = response?.messages?.[0]?.id;
     
     // Save to DB
     const newMessage = await WhatsAppMessage.create({
@@ -317,6 +344,8 @@ export const sendManualMessage = async (req: Request, res: Response) => {
       direction: "outbound",
       content: text,
       messageType: "text",
+      wamId,
+      status: wamId ? "sent" : undefined
     });
 
     res.json(newMessage);
@@ -424,5 +453,60 @@ export const deleteBotService = async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete bot service" });
+  }
+};
+
+// CRM Features APIs
+
+export const updateContact = async (req: Request, res: Response) => {
+  try {
+    const { status, tags, notes, unreadCount } = req.body;
+    const contactId = req.params.id;
+
+    // Build update object dynamically to only update provided fields
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (tags !== undefined) updateData.tags = tags;
+    if (notes !== undefined) updateData.notes = notes;
+    if (unreadCount !== undefined) updateData.unreadCount = unreadCount;
+
+    const contact = await WhatsAppContact.findByIdAndUpdate(
+      contactId,
+      { $set: updateData },
+      { new: true }
+    );
+    res.json(contact);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update contact" });
+  }
+};
+
+import WhatsAppQuickReply from "../models/WhatsAppQuickReply";
+
+export const getQuickReplies = async (req: Request, res: Response) => {
+  try {
+    const replies = await WhatsAppQuickReply.find().sort({ createdAt: -1 });
+    res.json(replies);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch quick replies" });
+  }
+};
+
+export const createQuickReply = async (req: Request, res: Response) => {
+  try {
+    const reply = new WhatsAppQuickReply(req.body);
+    await reply.save();
+    res.status(201).json(reply);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create quick reply" });
+  }
+};
+
+export const deleteQuickReply = async (req: Request, res: Response) => {
+  try {
+    await WhatsAppQuickReply.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete quick reply" });
   }
 };

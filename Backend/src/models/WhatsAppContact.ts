@@ -5,6 +5,10 @@ export interface IWhatsAppContact extends Document {
   name?: string;
   lastServiceViewedAt?: Date;
   currentPage: number;
+  status: "open" | "pending" | "resolved";
+  unreadCount: number;
+  tags: string[];
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +19,10 @@ const WhatsAppContactSchema: Schema = new Schema(
     name: { type: String },
     lastServiceViewedAt: { type: Date },
     currentPage: { type: Number, default: 1 },
+    status: { type: String, enum: ["open", "pending", "resolved"], default: "open" },
+    unreadCount: { type: Number, default: 0 },
+    tags: { type: [String], default: [] },
+    notes: { type: String, default: "" },
   },
   { timestamps: true }
 );

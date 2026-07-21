@@ -9,7 +9,11 @@ import {
   updateBotService,
   deleteBotService,
   reorderBotServices,
-  getAnalytics
+  getAnalytics,
+  updateContact,
+  getQuickReplies,
+  createQuickReply,
+  deleteQuickReply
 } from "../controllers/whatsappController";
 import { protect } from "../middleware/auth.middleware";
 
@@ -22,7 +26,13 @@ router.post("/webhook", handleWebhook);
 // CRM Routes (Protected for Admin)
 router.get("/analytics", protect, getAnalytics);
 router.get("/contacts", protect, getAllContacts);
+router.patch("/contacts/:id", protect, updateContact);
 router.post("/send", protect, sendManualMessage);
+
+// Quick Replies CRUD
+router.get("/quick-replies", protect, getQuickReplies);
+router.post("/quick-replies", protect, createQuickReply);
+router.delete("/quick-replies/:id", protect, deleteQuickReply);
 
 // Bot Services CRUD (Protected for Admin)
 router.get("/services", protect, getBotServices);

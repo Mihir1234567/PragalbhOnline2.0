@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save } from "lucide-react";
+import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2 } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -8,6 +8,8 @@ interface WhatsAppMessage {
   direction: "inbound" | "outbound";
   content: string;
   messageType: string;
+  wamId?: string;
+  status?: "sent" | "delivered" | "read" | "failed";
   createdAt: string;
 }
 
@@ -16,7 +18,17 @@ interface WhatsAppContact {
   phoneNumber: string;
   name?: string;
   lastServiceViewedAt?: string;
+  status: "open" | "pending" | "resolved";
+  unreadCount: number;
+  tags: string[];
+  notes?: string;
   messages: WhatsAppMessage[];
+}
+
+interface WhatsAppQuickReply {
+  _id: string;
+  title: string;
+  text: string;
 }
 
 interface BotService {
@@ -51,6 +63,15 @@ const AdminWhatsApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // CRM State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "pending" | "resolved">("all");
+  const [quickReplies, setQuickReplies] = useState<WhatsAppQuickReply[]>([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [editingNotes, setEditingNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+
   // Services State
   const [services, setServices] = useState<BotService[]>([]);
   const [isEditingService, setIsEditingService] = useState<string | null>(null);
@@ -64,14 +85,16 @@ const AdminWhatsApp: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [contactsRes, servicesRes, analyticsRes] = await Promise.all([
+      const [contactsRes, servicesRes, analyticsRes, quickRepliesRes] = await Promise.all([
         api.get("/whatsapp/contacts"),
         api.get("/whatsapp/services"),
         api.get("/whatsapp/analytics"),
+        api.get("/whatsapp/quick-replies"),
       ]);
       setContacts(contactsRes.data);
       setServices(servicesRes.data);
       setAnalytics(analyticsRes.data);
+      setQuickReplies(quickRepliesRes.data);
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch WhatsApp data", error);
@@ -136,9 +159,61 @@ const AdminWhatsApp: React.FC = () => {
       if (parsed.button?.text) return `[Button Clicked]: ${parsed.button.text}`;
       if (parsed.interactive?.list_reply?.title) return `[List Selection]: ${parsed.interactive.list_reply.title}`;
       if (parsed.interactive?.button_reply?.title) return `[Button Selection]: ${parsed.interactive.button_reply.title}`;
+      
+      // Rich media placeholders
+      if (msg.messageType === "image" && parsed.image?.id) {
+        return <span className="italic flex items-center gap-1 opacity-90"><FileText size={14}/> Image attached (Media ID: {parsed.image.id})</span>;
+      }
+      if (msg.messageType === "document" && parsed.document?.id) {
+        return <span className="italic flex items-center gap-1 opacity-90"><FileText size={14}/> Document attached (Media ID: {parsed.document.id})</span>;
+      }
     } catch (e) {}
     return msg.content;
   };
+
+  // CRM Handlers
+  const handleUpdateContact = async (contactId: string, updates: Partial<WhatsAppContact>) => {
+    try {
+      const { data } = await api.patch(`/whatsapp/contacts/${contactId}`, updates);
+      setContacts((prev) =>
+        prev.map((c) => (c._id === contactId ? { ...c, ...data, messages: c.messages } : c))
+      );
+    } catch (error) {
+      console.error("Failed to update contact", error);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (filteredContacts.length === 0) return;
+    const headers = ["Name", "Phone Number", "Status", "Unread Count", "Tags", "Notes", "Last Active"];
+    const rows = filteredContacts.map(c => [
+      c.name || "Unknown",
+      c.phoneNumber,
+      c.status,
+      c.unreadCount.toString(),
+      c.tags.join("; "),
+      (c.notes || "").replace(/\n/g, " "),
+      c.messages.length > 0 ? new Date(c.messages[c.messages.length - 1].createdAt).toLocaleString() : ""
+    ]);
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `pragalbh_leads_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredContacts = contacts.filter((c) => {
+    const matchesSearch = (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          c.phoneNumber.includes(searchQuery);
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   // Services Handlers
   const handleServiceSubmit = async (e: React.FormEvent) => {
@@ -237,32 +312,78 @@ const AdminWhatsApp: React.FC = () => {
       {activeTab === "chats" && (
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar / Contact List */}
-          <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 overflow-y-auto">
-            <div className="flex-1">
-              {contacts.map((contact) => (
+          <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
+              <input
+                type="text"
+                placeholder="Search name or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 dark:text-white"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none dark:text-white"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="open">Open</option>
+                  <option value="pending">Pending</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+                <button
+                  onClick={handleExportCSV}
+                  title="Export to CSV"
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+                >
+                  Export
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {filteredContacts.map((contact) => (
                 <div
                   key={contact._id}
-                  onClick={() => setActiveContactId(contact._id)}
+                  onClick={() => {
+                    setActiveContactId(contact._id);
+                    if (contact.unreadCount > 0) {
+                      handleUpdateContact(contact._id, { unreadCount: 0 });
+                    }
+                  }}
                   className={`p-4 border-b border-slate-100 dark:border-slate-800/50 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
                     activeContactId === contact._id ? "bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-l-indigo-500" : "border-l-4 border-l-transparent"
                   }`}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                      {contact.name || contact.phoneNumber}
-                    </span>
-                    {contact.messages.length > 0 && (
-                      <span className="text-xs text-slate-400">
-                        {new Date(contact.messages[contact.messages.length - 1].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${
+                        contact.status === 'open' ? 'bg-emerald-500' :
+                        contact.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'
+                      }`} />
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                        {contact.name || contact.phoneNumber}
                       </span>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {contact.unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          {contact.unreadCount}
+                        </span>
+                      )}
+                      {contact.messages.length > 0 && (
+                        <span className="text-xs text-slate-400">
+                          {new Date(contact.messages[contact.messages.length - 1].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-4">
                     <Phone size={12} /> {contact.phoneNumber}
                   </div>
                 </div>
               ))}
-              {contacts.length === 0 && (
+              {filteredContacts.length === 0 && (
                 <div className="p-8 text-center text-slate-500">
                   No conversations found.
                 </div>
@@ -274,19 +395,58 @@ const AdminWhatsApp: React.FC = () => {
           <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900/50">
             {activeContact ? (
               <>
-                <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center px-6 shrink-0">
+                <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                       <User size={20} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-white">
+                      <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                         {activeContact.name || activeContact.phoneNumber}
+                        {activeContact.tags?.map((tag, i) => (
+                          <span key={i} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal">
+                            {tag}
+                          </span>
+                        ))}
                       </h3>
                       <span className="text-xs text-slate-500 flex items-center gap-1">
                         <Phone size={12} /> {activeContact.phoneNumber}
                       </span>
                     </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={activeContact.status}
+                      onChange={(e) => handleUpdateContact(activeContact._id, { status: e.target.value as any })}
+                      className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none dark:text-white font-medium"
+                    >
+                      <option value="open">🟢 Open</option>
+                      <option value="pending">🟡 Pending</option>
+                      <option value="resolved">⚪ Resolved</option>
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const newTag = prompt("Enter a tag to add (e.g. Urgent):");
+                        if (newTag && newTag.trim()) {
+                          handleUpdateContact(activeContact._id, { tags: [...(activeContact.tags || []), newTag.trim()] });
+                        }
+                      }}
+                      className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white font-medium transition-colors"
+                    >
+                      + Tag
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setEditingNotes(activeContact.notes || "");
+                        setShowNotesModal(true);
+                      }}
+                      className="text-xs bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50 rounded-lg px-3 py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-medium transition-colors"
+                    >
+                      Notes
+                    </button>
                   </div>
                 </div>
 
@@ -317,6 +477,14 @@ const AdminWhatsApp: React.FC = () => {
                         >
                           <Clock size={10} />
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          
+                          {msg.direction === "outbound" && (
+                             <span className="ml-1 tracking-tighter">
+                               {msg.status === "sent" && "✓"}
+                               {msg.status === "delivered" && "✓✓"}
+                               {msg.status === "read" && <span className="text-emerald-300">✓✓</span>}
+                             </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -324,8 +492,41 @@ const AdminWhatsApp: React.FC = () => {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative">
+                  {showQuickReplies && (
+                    <div className="absolute bottom-full left-4 mb-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-10">
+                      <div className="p-3 border-b border-slate-100 dark:border-slate-700 font-medium text-sm dark:text-white flex justify-between items-center">
+                        Quick Replies
+                        <button onClick={() => setShowQuickReplies(false)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {quickReplies.map(qr => (
+                          <div 
+                            key={qr._id} 
+                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0"
+                            onClick={() => {
+                              setInputText(qr.text);
+                              setShowQuickReplies(false);
+                            }}
+                          >
+                            <div className="font-medium text-sm text-slate-800 dark:text-slate-200 mb-1">{qr.title}</div>
+                            <div className="text-xs text-slate-500 line-clamp-2">{qr.text}</div>
+                          </div>
+                        ))}
+                        {quickReplies.length === 0 && <div className="p-4 text-center text-sm text-slate-500">No quick replies found. Add them in settings.</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickReplies(!showQuickReplies)}
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors shrink-0"
+                      title="Quick Replies"
+                    >
+                      <Zap size={20} />
+                    </button>
                     <input
                       type="text"
                       value={inputText}
@@ -635,6 +836,53 @@ const AdminWhatsApp: React.FC = () => {
                   <div className="mb-2">No recent service requests.</div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Notes Modal */}
+      {showNotesModal && activeContact && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
+              <h3 className="font-semibold text-slate-800 dark:text-white">
+                Notes for {activeContact.name || activeContact.phoneNumber}
+              </h3>
+              <button 
+                onClick={() => setShowNotesModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={editingNotes}
+                onChange={(e) => setEditingNotes(e.target.value)}
+                placeholder="Add notes about this contact..."
+                rows={6}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:text-white resize-none"
+              />
+            </div>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">
+              <button
+                onClick={() => setShowNotesModal(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setNotesSaving(true);
+                  await handleUpdateContact(activeContact._id, { notes: editingNotes });
+                  setNotesSaving(false);
+                  setShowNotesModal(false);
+                }}
+                disabled={notesSaving}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50"
+              >
+                {notesSaving ? "Saving..." : "Save Notes"}
+              </button>
             </div>
           </div>
         </div>
