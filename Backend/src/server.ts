@@ -6,13 +6,11 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 import connectDB from "./config/database";
 import { ensureAdmin } from "./utils/bootstrapAdmin";
-import { initSocket } from "./socket";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-initSocket(server);
 
 export { app, server };
 

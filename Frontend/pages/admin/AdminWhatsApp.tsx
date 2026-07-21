@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate, PieChart as PieChartIcon, UserPlus } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
-import { io } from "socket.io-client";
 import { toast } from "react-hot-toast";
 
 interface WhatsAppMessage {
@@ -163,40 +162,14 @@ const AdminWhatsApp: React.FC = () => {
   }, [analyticsDateRange]);
 
   useEffect(() => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
-    const backendUrl = apiBase === "/api" ? undefined : apiBase.replace('/api', '');
-    const socket = io(backendUrl);
-
-    socket.on("whatsapp_new_message", (data: { contactId: string, message: any }) => {
-      setContacts((prev) => {
-        const contactExists = prev.some(c => c._id === data.contactId);
-        if (!contactExists) {
-          pollContacts(); // Fetch entirely new contact
-          return prev;
-        }
-        return prev.map(c => 
-          c._id === data.contactId 
-            ? { ...c, messages: [...(c.messages || []), data.message], unreadCount: c.unreadCount + 1 } 
-            : c
-        );
-      });
-    });
-
-    socket.on("whatsapp_message_status", (data: { wamId: string, status: string }) => {
-      setContacts((prev) => 
-        prev.map(c => ({
-          ...c,
-          messages: c.messages?.map(m => 
-            m.wamId === data.wamId ? { ...m, status: data.status as any } : m
-          )
-        }))
-      );
-    });
-
+    let interval: any;
+    if (activeTab === "chats") {
+      interval = setInterval(pollContacts, 5000); // 5s for fast pseudo-real-time
+    }
     return () => {
-      socket.disconnect();
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [activeTab]);
 
   const activeContact = contacts.find((c) => c._id === activeContactId);
 

@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import WhatsAppContact from "../models/WhatsAppContact";
 import WhatsAppMessage from "../models/WhatsAppMessage";
 import WhatsAppBotService from "../models/WhatsAppBotService";
-import { getIo } from "../socket";
 import {
   sendWelcomeTemplate,
   sendServicesList,
