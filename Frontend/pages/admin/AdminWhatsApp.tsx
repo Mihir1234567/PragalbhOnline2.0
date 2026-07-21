@@ -352,7 +352,7 @@ const AdminWhatsApp: React.FC = () => {
       const { data } = await api.post("/whatsapp/contacts", addContactForm);
       setShowAddContactModal(false);
       setAddContactForm({ name: "", phoneNumber: "" });
-      await fetchData();
+      await loadInitialData();
       setActiveContactId(data._id);
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create contact");
@@ -395,7 +395,7 @@ const AdminWhatsApp: React.FC = () => {
       }
       setShowServiceForm(false);
       setIsEditingService(null);
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save service", error);
     }
@@ -405,7 +405,7 @@ const AdminWhatsApp: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this bot service?")) {
       try {
         await api.delete(`/whatsapp/services/${id}`);
-        fetchData();
+        loadInitialData();
       } catch (error) {
         console.error("Failed to delete service", error);
       }
@@ -418,7 +418,7 @@ const AdminWhatsApp: React.FC = () => {
       await api.put("/whatsapp/services/reorder", { orderedIds });
       setHasUnsavedOrder(false);
       setIsReordering(false);
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save order", error);
     }
@@ -431,7 +431,7 @@ const AdminWhatsApp: React.FC = () => {
       await api.post("/whatsapp/quick-replies", quickReplyForm);
       setShowQuickReplyForm(false);
       setQuickReplyForm({ title: "", text: "" });
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save quick reply", error);
     }
@@ -441,7 +441,7 @@ const AdminWhatsApp: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this quick reply?")) {
       try {
         await api.delete(`/whatsapp/quick-replies/${id}`);
-        fetchData();
+        loadInitialData();
       } catch (error) {
         console.error("Failed to delete quick reply", error);
       }
