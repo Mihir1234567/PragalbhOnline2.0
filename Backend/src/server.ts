@@ -1,15 +1,20 @@
 import express from "express";
+import http from "http";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import connectDB from "./config/database";
 import { ensureAdmin } from "./utils/bootstrapAdmin";
+import { initSocket } from "./socket";
 
 dotenv.config();
 
 const app = express();
-export { app };
+const server = http.createServer(app);
+initSocket(server);
+
+export { app, server };
 
 // Middleware
 app.use(
@@ -50,7 +55,7 @@ const startServer = async () => {
   try {
     await connectDB();
     await ensureAdmin();
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {

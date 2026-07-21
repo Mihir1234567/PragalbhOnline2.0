@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate, PieChart as PieChartIcon, UserPlus } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
+import { io } from "socket.io-client";
+import { toast } from "react-hot-toast";
 
 interface WhatsAppMessage {
   _id: string;
@@ -161,14 +163,39 @@ const AdminWhatsApp: React.FC = () => {
   }, [analyticsDateRange]);
 
   useEffect(() => {
-    let interval: any;
-    if (activeTab === "chats") {
-      interval = setInterval(pollContacts, 10000); // Poll every 10s only in chats
-    }
+    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000";
+    const socket = io(backendUrl);
+
+    socket.on("whatsapp_new_message", (data: { contactId: string, message: any }) => {
+      setContacts((prev) => {
+        const contactExists = prev.some(c => c._id === data.contactId);
+        if (!contactExists) {
+          pollContacts(); // Fetch entirely new contact
+          return prev;
+        }
+        return prev.map(c => 
+          c._id === data.contactId 
+            ? { ...c, messages: [...(c.messages || []), data.message], unreadCount: c.unreadCount + 1 } 
+            : c
+        );
+      });
+    });
+
+    socket.on("whatsapp_message_status", (data: { wamId: string, status: string }) => {
+      setContacts((prev) => 
+        prev.map(c => ({
+          ...c,
+          messages: c.messages?.map(m => 
+            m.wamId === data.wamId ? { ...m, status: data.status as any } : m
+          )
+        }))
+      );
+    });
+
     return () => {
-      if (interval) clearInterval(interval);
+      socket.disconnect();
     };
-  }, [activeTab]);
+  }, []);
 
   const activeContact = contacts.find((c) => c._id === activeContactId);
 
@@ -214,7 +241,7 @@ const AdminWhatsApp: React.FC = () => {
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (error: any) {
       console.error("Failed to send template", error);
-      alert(`Failed to send template: ${error?.response?.data?.error || error.message}`);
+      toast.error(`Failed to send template: ${error?.response?.data?.error || error.message}`);
     } finally {
       setSendingTemplate(false);
     }
@@ -238,7 +265,7 @@ const AdminWhatsApp: React.FC = () => {
     
     // In this specific case, it's just the service dropdown. But to be safe we'll use the dropdown state.
     if (templateVariableValues.some(v => !v.trim())) {
-      alert("Please fill in all variables.");
+      toast.error("Please fill in all variables.");
       return;
     }
     
@@ -471,7 +498,7 @@ const AdminWhatsApp: React.FC = () => {
       setEditingContactId(null);
     } catch (error) {
       console.error("Failed to update contact", error);
-      alert("Failed to update contact");
+      toast.error("Failed to update contact");
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "./context/ThemeContext";
 import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import { LanguageProvider } from "./context/LanguageContext";
@@ -39,6 +40,7 @@ const App: React.FC = () => {
           <AdminProfileProvider>
             <ServiceProvider>
               <HashRouter>
+                <Toaster position="bottom-right" />
                 <ScrollToTop />
                 <VisitTracker />
                 <div className="flex flex-col min-h-screen font-sans dark:bg-slate-900 dark:text-white">

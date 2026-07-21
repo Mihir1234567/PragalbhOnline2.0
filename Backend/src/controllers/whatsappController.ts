@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import WhatsAppContact from "../models/WhatsAppContact";
 import WhatsAppMessage from "../models/WhatsAppMessage";
 import WhatsAppBotService from "../models/WhatsAppBotService";
+import { getIo } from "../socket";
 import {
   sendWelcomeTemplate,
   sendServicesList,
@@ -63,6 +64,10 @@ const processMessageStatus = async (statusObj: any) => {
   
   if (wamId && status) {
     await WhatsAppMessage.updateOne({ wamId }, { status });
+    const io = getIo();
+    if (io) {
+      io.emit("whatsapp_message_status", { wamId, status });
+    }
   }
 };
 
@@ -98,12 +103,17 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
   }
 
   // Save inbound message
-  await WhatsAppMessage.create({
+  const newMsg = await WhatsAppMessage.create({
     contactId: contact._id,
     direction: "inbound",
     content: JSON.stringify(msgData),
     messageType: msgType,
   });
+
+  const io = getIo();
+  if (io) {
+    io.emit("whatsapp_new_message", { contactId: contact._id, message: newMsg });
+  }
 
   if (isNewContact) {
     const response = await sendWelcomeTemplate(phoneNumber);
@@ -219,7 +229,7 @@ const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDe
 };
 
 const saveOutboundMessage = async (contactId: any, content: string, messageType: string, wamId?: string) => {
-  await WhatsAppMessage.create({
+  const newMsg = await WhatsAppMessage.create({
     contactId,
     direction: "outbound",
     content,
@@ -227,6 +237,11 @@ const saveOutboundMessage = async (contactId: any, content: string, messageType:
     wamId,
     status: wamId ? "sent" : undefined
   });
+  
+  const io = getIo();
+  if (io) {
+    io.emit("whatsapp_new_message", { contactId, message: newMsg });
+  }
 };
 
 // CRM APIs
@@ -457,6 +472,11 @@ export const sendManualMessage = async (req: Request, res: Response) => {
       wamId,
       status: wamId ? "sent" : undefined
     });
+
+    const io = getIo();
+    if (io) {
+      io.emit("whatsapp_new_message", { contactId: contact._id, message: newMessage });
+    }
 
     res.json(newMessage);
   } catch (error: any) {
