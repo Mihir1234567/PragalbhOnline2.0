@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle } from "lucide-react";
+import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -61,8 +61,8 @@ const getRequestedServices = (messages: any[]) => {
 };
 
 const AdminWhatsApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"chats" | "services" | "analytics" | "quick_replies">(() => {
-    return (localStorage.getItem("whatsappActiveTab") as "chats" | "services" | "analytics" | "quick_replies") || "chats";
+  const [activeTab, setActiveTab] = useState<"chats" | "services" | "analytics" | "quick_replies" | "contacts">(() => {
+    return (localStorage.getItem("whatsappActiveTab") as "chats" | "services" | "analytics" | "quick_replies" | "contacts") || "chats";
   });
 
   useEffect(() => {
@@ -101,6 +101,13 @@ const AdminWhatsApp: React.FC = () => {
 
   // Analytics State
   const [analytics, setAnalytics] = useState<WhatsAppAnalytics | null>(null);
+
+  // Contacts Tab State
+  const [contactsSearchQuery, setContactsSearchQuery] = useState("");
+  const [contactsStatusFilter, setContactsStatusFilter] = useState<"all" | "open" | "pending" | "resolved">("all");
+  const [contactsSortBy, setContactsSortBy] = useState<"newest" | "name_asc" | "name_desc">("newest");
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editContactForm, setEditContactForm] = useState({ name: "", phoneNumber: "", status: "open", dailyServiceLimit: 2, tags: "", notes: "" });
 
   const fetchData = async () => {
     try {
@@ -306,6 +313,41 @@ const AdminWhatsApp: React.FC = () => {
     }
   };
 
+  const handleEditContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContactId) return;
+
+    try {
+      const parsedTags = editContactForm.tags.split(',').map(t => t.trim()).filter(Boolean);
+      await api.put(`/whatsapp/contacts/${editingContactId}`, {
+        name: editContactForm.name,
+        status: editContactForm.status,
+        tags: parsedTags,
+        dailyServiceLimit: editContactForm.dailyServiceLimit,
+        notes: editContactForm.notes
+      });
+      
+      const newContacts = [...contacts];
+      const idx = newContacts.findIndex(c => c._id === editingContactId);
+      if (idx !== -1) {
+        newContacts[idx] = {
+          ...newContacts[idx],
+          name: editContactForm.name,
+          status: editContactForm.status as any,
+          tags: parsedTags,
+          dailyServiceLimit: editContactForm.dailyServiceLimit,
+          notes: editContactForm.notes
+        };
+        setContacts(newContacts);
+      }
+      
+      setEditingContactId(null);
+    } catch (error) {
+      console.error("Failed to update contact", error);
+      alert("Failed to update contact");
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading...</div>;
   }
@@ -326,6 +368,17 @@ const AdminWhatsApp: React.FC = () => {
           <MessageSquare size={18} />
           Chats
         </button>
+          <button
+            onClick={() => setActiveTab("contacts")}
+            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
+              activeTab === "contacts"
+                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+            }`}
+          >
+            <Users size={18} />
+            Contacts
+          </button>
           <button
             onClick={() => setActiveTab("services")}
             className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
@@ -450,10 +503,10 @@ const AdminWhatsApp: React.FC = () => {
                       <User size={20} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                      <h3 className="font-semibold text-slate-800 dark:text-white flex items-center flex-wrap gap-2">
                         {activeContact.name || activeContact.phoneNumber}
                         {activeContact.tags?.map((tag, i) => (
-                          <span key={i} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal">
+                          <span key={i} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
                             {tag}
                           </span>
                         ))}
@@ -878,41 +931,52 @@ const AdminWhatsApp: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col max-h-[600px]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 shrink-0">Recent Service Requests</h3>
-              {analytics.recentServiceRequests && analytics.recentServiceRequests.length > 0 ? (
-                <div className="overflow-y-auto pr-2 -mr-2 space-y-4 flex-1">
-                  {analytics.recentServiceRequests.map((request, index) => (
-                    <div key={index} className="flex items-start justify-between border-b border-slate-100 dark:border-slate-700/50 pb-4 last:border-0 last:pb-0">
-                      <div>
-                        <div className="font-semibold text-slate-800 dark:text-white text-sm">{request.userName}</div>
-                        <div className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{request.phoneNumber}</div>
-                        <div className="text-indigo-600 dark:text-indigo-400 font-medium text-sm mt-1">{request.serviceTitle}</div>
-                      </div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded">
-                        {new Date(request.timestamp).toLocaleString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
-                  <div className="mb-2">No recent service requests.</div>
-                </div>
-              )}
+      {/* Contacts Tab */}
+      {activeTab === "contacts" && (
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Contacts Management</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search contacts..."
+                  value={contactsSearchQuery}
+                  onChange={(e) => setContactsSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64 text-slate-800 dark:text-white"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-slate-500" />
+                <select
+                  value={contactsStatusFilter}
+                  onChange={(e) => setContactsStatusFilter(e.target.value as any)}
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="open">Open</option>
+                  <option value="pending">Pending</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+              <select
+                value={contactsSortBy}
+                onChange={(e) => setContactsSortBy(e.target.value as any)}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+              >
+                <option value="newest">Newest First</option>
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="name_desc">Name (Z-A)</option>
+              </select>
             </div>
           </div>
 
-          <div className="mt-8 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/30">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Contact Overview</h3>
-            </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50/50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
@@ -924,70 +988,114 @@ const AdminWhatsApp: React.FC = () => {
                     <th className="py-4 px-6">Used Today</th>
                     <th className="py-4 px-6">Tags</th>
                     <th className="py-4 px-6">Notes</th>
+                    <th className="py-4 px-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                  {contacts.map(contact => (
-                    <tr key={contact._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-slate-800 dark:text-white">{contact.name || "Unknown"}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">{contact.phoneNumber}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {(() => {
-                            const services = getRequestedServices(contact.messages);
-                            if (services.length === 0) return <span className="text-slate-400 italic text-xs">None</span>;
-                            return services.map((srv, i) => (
-                              <span key={i} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-md font-medium border border-indigo-100 dark:border-indigo-800 break-words line-clamp-2" title={srv}>
-                                {srv}
-                              </span>
-                            ));
-                          })()}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
-                          contact.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                          contact.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                          'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                        }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${
-                            contact.status === 'open' ? 'bg-emerald-500' :
-                            contact.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'
-                          }`} />
-                          {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 font-medium text-slate-700 dark:text-slate-300">
-                        {contact.dailyServiceLimit === 0 ? "Unlimited" : contact.dailyServiceLimit ?? 2}
-                      </td>
-                      <td className="py-4 px-6 font-medium text-indigo-600 dark:text-indigo-400">
-                        {contact.servicesRequestedToday || 0}
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex flex-wrap gap-1">
-                          {contact.tags?.length > 0 ? (
-                            contact.tags.map((tag, i) => (
-                              <span key={i} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
-                                {tag}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-slate-400 italic text-xs">No tags</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 max-w-[200px] truncate text-slate-600 dark:text-slate-400" title={contact.notes}>
-                        {contact.notes || <span className="italic text-slate-400 text-xs">No notes</span>}
-                      </td>
-                    </tr>
-                  ))}
-                  {contacts.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">No contacts found.</td>
-                    </tr>
-                  )}
+                  {(() => {
+                    let displayContacts = contacts.filter(c => {
+                      const matchesSearch = c.name?.toLowerCase().includes(contactsSearchQuery.toLowerCase()) || 
+                                            c.phoneNumber.includes(contactsSearchQuery);
+                      const matchesStatus = contactsStatusFilter === "all" || c.status === contactsStatusFilter;
+                      return matchesSearch && matchesStatus;
+                    });
+                    
+                    displayContacts.sort((a, b) => {
+                      if (contactsSortBy === "name_asc") {
+                        return (a.name || a.phoneNumber).localeCompare(b.name || b.phoneNumber);
+                      } else if (contactsSortBy === "name_desc") {
+                        return (b.name || b.phoneNumber).localeCompare(a.name || a.phoneNumber);
+                      } else {
+                        const aTime = a.messages?.[a.messages.length - 1]?.createdAt || "";
+                        const bTime = b.messages?.[b.messages.length - 1]?.createdAt || "";
+                        return bTime.localeCompare(aTime);
+                      }
+                    });
+
+                    if (displayContacts.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-500">No contacts found.</td>
+                        </tr>
+                      );
+                    }
+
+                    return displayContacts.map(contact => (
+                      <tr key={contact._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-4 px-6">
+                          <div className="font-semibold text-slate-800 dark:text-white">{contact.name || "Unknown"}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">{contact.phoneNumber}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {(() => {
+                              const services = getRequestedServices(contact.messages);
+                              if (services.length === 0) return <span className="text-slate-400 italic text-xs">None</span>;
+                              return services.map((srv, i) => (
+                                <span key={i} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-md font-medium border border-indigo-100 dark:border-indigo-800 break-words line-clamp-2" title={srv}>
+                                  {srv}
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
+                            contact.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                            contact.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${
+                              contact.status === 'open' ? 'bg-emerald-500' :
+                              contact.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'
+                            }`} />
+                            {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-medium text-slate-700 dark:text-slate-300">
+                          {contact.dailyServiceLimit === 0 ? "Unlimited" : contact.dailyServiceLimit ?? 2}
+                        </td>
+                        <td className="py-4 px-6 font-medium text-indigo-600 dark:text-indigo-400">
+                          {contact.servicesRequestedToday || 0}
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1">
+                            {contact.tags?.length > 0 ? (
+                              contact.tags.map((tag, i) => (
+                                <span key={i} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
+                                  {tag}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-slate-400 italic text-xs">No tags</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 max-w-[200px] truncate text-slate-600 dark:text-slate-400" title={contact.notes}>
+                          {contact.notes || <span className="italic text-slate-400 text-xs">No notes</span>}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => {
+                              setEditingContactId(contact._id);
+                              setEditContactForm({
+                                name: contact.name || "",
+                                phoneNumber: contact.phoneNumber,
+                                status: contact.status,
+                                dailyServiceLimit: contact.dailyServiceLimit ?? 2,
+                                tags: contact.tags?.join(", ") || "",
+                                notes: contact.notes || ""
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            title="Edit Contact"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -1130,40 +1238,75 @@ const AdminWhatsApp: React.FC = () => {
         </div>
       )}
 
-      {/* Add Contact Modal */}
-      {showAddContactModal && (
+
+      {/* Edit Contact Modal */}
+      {editingContactId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
-              <h3 className="font-semibold text-slate-800 dark:text-white">Add New Contact</h3>
-              <button 
-                onClick={() => setShowAddContactModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-              >
+              <h3 className="font-semibold text-slate-800 dark:text-white">Edit Contact</h3>
+              <button onClick={() => setEditingContactId(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4">
-              <form id="add-contact-form" onSubmit={handleCreateContact} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name (Optional)</label>
-                  <input
-                    type="text"
-                    value={addContactForm.name}
-                    onChange={(e) => setAddContactForm({ ...addContactForm, name: e.target.value })}
-                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
-                    placeholder="John Doe"
-                  />
+            <div className="p-6">
+              <form id="edit-contact-form" onSubmit={handleEditContactSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={editContactForm.name}
+                      onChange={(e) => setEditContactForm({ ...editContactForm, name: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+                    <select
+                      value={editContactForm.status}
+                      onChange={(e) => setEditContactForm({ ...editContactForm, status: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                    >
+                      <option value="open">Open</option>
+                      <option value="pending">Pending</option>
+                      <option value="resolved">Resolved</option>
+                    </select>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Daily Service Limit (0 for unlimited)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editContactForm.dailyServiceLimit}
+                      onChange={(e) => setEditContactForm({ ...editContactForm, dailyServiceLimit: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      value={editContactForm.tags}
+                      onChange={(e) => setEditContactForm({ ...editContactForm, tags: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                      placeholder="e.g. VIP, Requires Followup"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addContactForm.phoneNumber}
-                    onChange={(e) => setAddContactForm({ ...addContactForm, phoneNumber: e.target.value })}
-                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
-                    placeholder="+919876543210"
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
+                  <textarea
+                    value={editContactForm.notes}
+                    onChange={(e) => setEditContactForm({ ...editContactForm, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white resize-none"
+                    placeholder="Add internal notes..."
                   />
                 </div>
               </form>
@@ -1171,17 +1314,17 @@ const AdminWhatsApp: React.FC = () => {
             <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">
               <button
                 type="button"
-                onClick={() => setShowAddContactModal(false)}
-                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium"
+                onClick={() => setEditingContactId(null)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                form="add-contact-form"
+                form="edit-contact-form"
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>
