@@ -136,22 +136,9 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
     } else if (interactiveData.type === "button_reply") {
       const buttonTitle = (interactiveData.button_reply?.title || "").trim();
       if (buttonTitle === "વધુ સેવાઓ જુઓ (More)") {
-        if (contact.currentPage === 1) {
-          contact.currentPage = 2;
-          await contact.save();
-          const response = await sendTemplate(phoneNumber, "services_2");
-          await saveOutboundMessage(contact._id, "Sent services_2", "template", response?.messages?.[0]?.id);
-        } else if (contact.currentPage === 2) {
-          contact.currentPage = 3;
-          await contact.save();
-          const response = await sendTemplate(phoneNumber, "services_3");
-          await saveOutboundMessage(contact._id, "Sent services_3", "template", response?.messages?.[0]?.id);
-        } else {
-          contact.currentPage = 1;
-          await contact.save();
-          const response = await sendTemplate(phoneNumber, "welcome_services");
-          await saveOutboundMessage(contact._id, "Sent welcome_services", "template", response?.messages?.[0]?.id);
-        }
+        const services = await WhatsAppBotService.find().sort({ order: 1 });
+        const response = await sendServicesList(phoneNumber, services, 1);
+        await saveOutboundMessage(contact._id, "Sent services list page 1", "interactive", response?.messages?.[0]?.id);
       } else {
         const service = await WhatsAppBotService.findOne({ title: buttonTitle });
         if (service) {
