@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -526,10 +526,10 @@ const AdminWhatsApp: React.FC = () => {
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           
                           {msg.direction === "outbound" && (
-                             <span className="ml-1 tracking-tighter">
-                               {msg.status === "sent" && "✓"}
-                               {msg.status === "delivered" && "✓✓"}
-                               {msg.status === "read" && <span className="text-emerald-300">✓✓</span>}
+                             <span className="ml-1 flex items-center">
+                               {msg.status === "sent" && <Check size={14} />}
+                               {msg.status === "delivered" && <CheckCheck size={14} />}
+                               {msg.status === "read" && <CheckCheck size={14} className="text-emerald-400" />}
                              </span>
                           )}
                         </div>
