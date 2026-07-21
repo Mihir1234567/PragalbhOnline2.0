@@ -1614,7 +1614,7 @@ const AdminWhatsApp: React.FC = () => {
                           const newValues = [...templateVariableValues];
                           newValues[0] = srv.title;
                           newValues[1] = srv.documents && srv.documents.length > 0 
-                                         ? srv.documents.map((d: any) => d.name).join(", ") 
+                                         ? srv.documents.join(", ") 
                                          : "કોઈ દસ્તાવેજ જરૂરી નથી";
                           setTemplateVariableValues(newValues);
                         } else if (srv && templateVariableValues.length === 1) {
