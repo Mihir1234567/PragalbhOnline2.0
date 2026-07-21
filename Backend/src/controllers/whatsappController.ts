@@ -63,10 +63,6 @@ const processMessageStatus = async (statusObj: any) => {
   
   if (wamId && status) {
     await WhatsAppMessage.updateOne({ wamId }, { status });
-    const io = getIo();
-    if (io) {
-      io.emit("whatsapp_message_status", { wamId, status });
-    }
   }
 };
 
@@ -119,11 +115,6 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
       messageType: msgType,
       wamId: msgId,
     });
-
-  const io = getIo();
-  if (io) {
-    io.emit("whatsapp_new_message", { contactId: contact._id, message: newMsg });
-  }
 
   if (isNewContact) {
     const response = await sendWelcomeTemplate(phoneNumber);
@@ -220,12 +211,13 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
           await saveOutboundMessage(contact._id, "Service not found. Please try again.", "text", response?.messages?.[0]?.id);
         }
     }
+  }
   } catch (error) {
     console.error("Error in processIncomingMessage:", error);
   }
 };
 
-const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDetails: any) => {
+async function handleServiceRequest(contact: any, phoneNumber: string, serviceDetails: any) {
   if (!serviceDetails) {
     const response = await sendTextMessage(phoneNumber, "Service not found.");
     await saveOutboundMessage(contact._id, "Service not found.", "text", response?.messages?.[0]?.id);
@@ -254,7 +246,7 @@ const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDe
   await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
 };
 
-const saveOutboundMessage = async (contactId: any, content: string, messageType: string, wamId?: string) => {
+async function saveOutboundMessage(contactId: any, content: string, messageType: string, wamId?: string) {
   const newMsg = await WhatsAppMessage.create({
     contactId,
     direction: "outbound",
@@ -263,12 +255,7 @@ const saveOutboundMessage = async (contactId: any, content: string, messageType:
     wamId,
     status: wamId ? "sent" : undefined
   });
-  
-  const io = getIo();
-  if (io) {
-    io.emit("whatsapp_new_message", { contactId, message: newMsg });
-  }
-};
+}
 
 // CRM APIs
 
@@ -498,11 +485,6 @@ export const sendManualMessage = async (req: Request, res: Response) => {
       wamId,
       status: wamId ? "sent" : undefined
     });
-
-    const io = getIo();
-    if (io) {
-      io.emit("whatsapp_new_message", { contactId: contact._id, message: newMessage });
-    }
 
     res.json(newMessage);
   } catch (error: any) {
