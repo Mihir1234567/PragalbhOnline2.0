@@ -356,66 +356,66 @@ const AdminWhatsApp: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-slate-900 -mx-6 -mt-6">
       
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-6 pt-2 gap-4">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveTab("chats")}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "chats"
-              ? "border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
           }`}
         >
           <MessageSquare size={18} />
           Chats
         </button>
-          <button
-            onClick={() => setActiveTab("contacts")}
-            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
-              activeTab === "contacts"
-                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-            }`}
-          >
-            <Users size={18} />
-            Contacts
-          </button>
-          <button
-            onClick={() => setActiveTab("services")}
-            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
-              activeTab === "services"
-                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-            }`}
-          >
-            <Settings size={18} />
-            Bot Services Data
-          </button>
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
-              activeTab === "analytics"
-                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-            }`}
-          >
-            <div className="flex gap-0.5 items-end h-4 w-4 overflow-hidden">
-                <div className="w-1 bg-current h-2"></div>
-                <div className="w-1 bg-current h-3"></div>
-                <div className="w-1 bg-current h-4"></div>
-            </div>
-            Analytics
-          </button>
-          <button
-            onClick={() => setActiveTab("quick_replies")}
-            className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors ${
-              activeTab === "quick_replies"
-                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-            }`}
-          >
-            <Zap size={18} />
-            Quick Replies
-          </button>
+        <button
+          onClick={() => setActiveTab("contacts")}
+          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "contacts"
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+          }`}
+        >
+          <Users size={18} />
+          Contacts
+        </button>
+        <button
+          onClick={() => setActiveTab("services")}
+          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "services"
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+          }`}
+        >
+          <Settings size={18} />
+          Bot Services Data
+        </button>
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "analytics"
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+          }`}
+        >
+          <div className="flex gap-0.5 items-end h-4 w-4 overflow-hidden">
+              <div className="w-1 bg-current h-2"></div>
+              <div className="w-1 bg-current h-3"></div>
+              <div className="w-1 bg-current h-4"></div>
+          </div>
+          Analytics
+        </button>
+        <button
+          onClick={() => setActiveTab("quick_replies")}
+          className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "quick_replies"
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+          }`}
+        >
+          <Zap size={18} />
+          Quick Replies
+        </button>
       </div>
 
       {activeTab === "chats" && (
