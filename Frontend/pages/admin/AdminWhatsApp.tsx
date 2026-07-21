@@ -497,53 +497,55 @@ const AdminWhatsApp: React.FC = () => {
           <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900/50">
             {activeContact ? (
               <>
-                <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0 gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <User size={20} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                        <span className="truncate max-w-[150px] sm:max-w-[200px] xl:max-w-[300px]">
+                        <span className="truncate">
                           {activeContact.name || activeContact.phoneNumber}
                         </span>
-                        {activeContact.tags?.slice(0, 3).map((tag, i) => (
-                          <button 
-                            key={i} 
-                            onClick={() => {
-                              setEditingContactId(activeContact._id);
-                              setEditContactForm({
-                                name: activeContact.name || "",
-                                phoneNumber: activeContact.phoneNumber,
-                                status: activeContact.status,
-                                dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
-                                tags: activeContact.tags?.join(", ") || "",
-                                notes: activeContact.notes || ""
-                              });
-                            }}
-                            className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                        {activeContact.tags && activeContact.tags.length > 3 && (
-                          <button 
-                            onClick={() => {
-                              setEditingContactId(activeContact._id);
-                              setEditContactForm({
-                                name: activeContact.name || "",
-                                phoneNumber: activeContact.phoneNumber,
-                                status: activeContact.status,
-                                dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
-                                tags: activeContact.tags?.join(", ") || "",
-                                notes: activeContact.notes || ""
-                              });
-                            }}
-                            className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                          >
-                            +{activeContact.tags.length - 3}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {activeContact.tags?.slice(0, 3).map((tag, i) => (
+                            <button 
+                              key={i} 
+                              onClick={() => {
+                                setEditingContactId(activeContact._id);
+                                setEditContactForm({
+                                  name: activeContact.name || "",
+                                  phoneNumber: activeContact.phoneNumber,
+                                  status: activeContact.status,
+                                  dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
+                                  tags: activeContact.tags?.join(", ") || "",
+                                  notes: activeContact.notes || ""
+                                });
+                              }}
+                              className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-normal whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                          {activeContact.tags && activeContact.tags.length > 3 && (
+                            <button 
+                              onClick={() => {
+                                setEditingContactId(activeContact._id);
+                                setEditContactForm({
+                                  name: activeContact.name || "",
+                                  phoneNumber: activeContact.phoneNumber,
+                                  status: activeContact.status,
+                                  dailyServiceLimit: activeContact.dailyServiceLimit ?? 2,
+                                  tags: activeContact.tags?.join(", ") || "",
+                                  notes: activeContact.notes || ""
+                                });
+                              }}
+                              className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                            >
+                              +{activeContact.tags.length - 3}
+                            </button>
+                          )}
+                        </div>
                       </h3>
                       <span className="text-xs text-slate-500 flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1"><Phone size={12} /> {activeContact.phoneNumber}</span>
