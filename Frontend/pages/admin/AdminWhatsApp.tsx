@@ -551,6 +551,62 @@ const AdminWhatsApp: React.FC = () => {
           )}
         </div>
       )}
+      {/* Analytics Tab */}
+      {activeTab === "analytics" && analytics && (
+        <div className="flex-1 overflow-y-auto p-6">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">WhatsApp Engagement Analytics</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
+              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Total Unique Users</div>
+              <div className="text-3xl font-bold text-slate-800 dark:text-white">{analytics.totalUsers.toLocaleString()}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
+              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Total Messages</div>
+              <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{analytics.totalMessages.toLocaleString()}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
+              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Inbound (Received)</div>
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{analytics.totalInbound.toLocaleString()}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between">
+              <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">Outbound (Sent)</div>
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.totalOutbound.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Requested Services</h3>
+            {analytics.topServices.length > 0 ? (
+              <div className="space-y-6">
+                {analytics.topServices.map((service, index) => {
+                  const maxCount = analytics.topServices[0].count || 1;
+                  const percentage = Math.round((service.count / maxCount) * 100);
+                  return (
+                    <div key={index} className="flex flex-col gap-2">
+                      <div className="flex justify-between items-end text-sm">
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{service.title}</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">{service.count} requests</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <div className="mb-2">No service requests recorded yet.</div>
+                <div className="text-sm">Once users interact with the bot, analytics will appear here.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
