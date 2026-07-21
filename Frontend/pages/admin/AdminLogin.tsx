@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import api from "../../lib/client";
 import { useToast } from "../../context/ToastContext";
+import { useAdmin } from "../../context/AdminContext";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { fetchApplications, fetchReviews } = useAdmin();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +41,9 @@ const AdminLogin: React.FC = () => {
 
       localStorage.setItem("pragalbh_admin_token", data.token); // Store token for API
       localStorage.setItem("pragalbh_admin_auth", "true"); // Modify legacy flag
+
+      // Fetch data immediately now that we are authenticated
+      await Promise.all([fetchApplications(), fetchReviews()]);
 
       setIsLoading(false);
       showToast("Login successful", "success");
@@ -211,7 +216,7 @@ const AdminLogin: React.FC = () => {
                 ) : (
                   <>
                     <LogIn className="h-5 w-5 mr-2" />
-                    Sign in to Dashboard
+                    Sign in to Dashboards
                   </>
                 )}
               </button>

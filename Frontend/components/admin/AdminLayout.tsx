@@ -35,6 +35,11 @@ const AdminLayout: React.FC = () => {
       label: "Reviews & Feedbacks",
       icon: MessageSquare,
     },
+    {
+      path: "/admin/whatsapp",
+      label: "WhatsApp CRM",
+      icon: MessageSquare,
+    },
   ];
 
   const getPageTitle = () => {
