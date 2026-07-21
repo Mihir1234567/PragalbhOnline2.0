@@ -18,6 +18,8 @@ interface WhatsAppContact {
   phoneNumber: string;
   name?: string;
   lastServiceViewedAt?: string;
+  dailyServiceLimit: number;
+  servicesRequestedToday: number;
   status: "open" | "pending" | "resolved";
   unreadCount: number;
   tags: string[];
@@ -375,13 +377,6 @@ const AdminWhatsApp: React.FC = () => {
                   <option value="pending">Pending</option>
                   <option value="resolved">Resolved</option>
                 </select>
-                <button
-                  onClick={() => setShowAddContactModal(true)}
-                  title="Add Contact"
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center"
-                >
-                  <Plus size={16} />
-                </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -452,8 +447,11 @@ const AdminWhatsApp: React.FC = () => {
                           </span>
                         ))}
                       </h3>
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <Phone size={12} /> {activeContact.phoneNumber}
+                      <span className="text-xs text-slate-500 flex items-center gap-3 mt-1">
+                        <span className="flex items-center gap-1"><Phone size={12} /> {activeContact.phoneNumber}</span>
+                        <span className="text-indigo-500 dark:text-indigo-400 font-medium">
+                          Used today: {activeContact.servicesRequestedToday || 0}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -468,6 +466,17 @@ const AdminWhatsApp: React.FC = () => {
                       <option value="pending">🟡 Pending</option>
                       <option value="resolved">⚪ Resolved</option>
                     </select>
+
+                    <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5" title="0 for unlimited">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Limit:</span>
+                      <input 
+                        type="number"
+                        min="0"
+                        className="w-10 bg-transparent text-xs text-slate-800 dark:text-white focus:outline-none font-medium"
+                        value={activeContact.dailyServiceLimit ?? 2}
+                        onChange={(e) => handleUpdateContact(activeContact._id, { dailyServiceLimit: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
                     
                     <button
                       onClick={() => {
@@ -886,6 +895,77 @@ const AdminWhatsApp: React.FC = () => {
                   <div className="mb-2">No recent service requests.</div>
                 </div>
               )}
+            </div>
+            </div>
+          </div>
+
+          <div className="mt-8 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/30">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Contact Overview</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="py-4 px-6">Contact Info</th>
+                    <th className="py-4 px-6">Status</th>
+                    <th className="py-4 px-6">Daily Limit</th>
+                    <th className="py-4 px-6">Used Today</th>
+                    <th className="py-4 px-6">Tags</th>
+                    <th className="py-4 px-6">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                  {contacts.map(contact => (
+                    <tr key={contact._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="font-semibold text-slate-800 dark:text-white">{contact.name || "Unknown"}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{contact.phoneNumber}</div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
+                          contact.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                          contact.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                          'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            contact.status === 'open' ? 'bg-emerald-500' :
+                            contact.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'
+                          }`} />
+                          {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 font-medium text-slate-700 dark:text-slate-300">
+                        {contact.dailyServiceLimit === 0 ? "Unlimited" : contact.dailyServiceLimit ?? 2}
+                      </td>
+                      <td className="py-4 px-6 font-medium text-indigo-600 dark:text-indigo-400">
+                        {contact.servicesRequestedToday || 0}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-wrap gap-1">
+                          {contact.tags?.length > 0 ? (
+                            contact.tags.map((tag, i) => (
+                              <span key={i} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
+                                {tag}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">No tags</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 max-w-[200px] truncate text-slate-600 dark:text-slate-400" title={contact.notes}>
+                        {contact.notes || <span className="italic text-slate-400 text-xs">No notes</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {contacts.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">No contacts found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

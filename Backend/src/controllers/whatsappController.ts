@@ -188,15 +188,25 @@ const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDe
   }
 
   const timeThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  if (contact.lastServiceViewedAt && contact.lastServiceViewedAt >= timeThreshold) {
-    const response = await sendLimitReachedTemplate(phoneNumber);
-    await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template", response?.messages?.[0]?.id);
-  } else {
-    const response = await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
-    contact.lastServiceViewedAt = new Date();
-    await contact.save();
-    await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
+  const dailyLimit = contact.dailyServiceLimit !== undefined ? contact.dailyServiceLimit : 2;
+  
+  if (dailyLimit > 0) {
+    if (!contact.lastServiceViewedAt || contact.lastServiceViewedAt < timeThreshold) {
+      contact.servicesRequestedToday = 0;
+    }
+
+    if ((contact.servicesRequestedToday || 0) >= dailyLimit) {
+      const response = await sendLimitReachedTemplate(phoneNumber);
+      await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template", response?.messages?.[0]?.id);
+      return;
+    }
   }
+
+  const response = await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
+  contact.lastServiceViewedAt = new Date();
+  contact.servicesRequestedToday = (contact.servicesRequestedToday || 0) + 1;
+  await contact.save();
+  await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
 };
 
 const saveOutboundMessage = async (contactId: any, content: string, messageType: string, wamId?: string) => {
