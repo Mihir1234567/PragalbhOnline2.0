@@ -540,7 +540,7 @@ export const reorderBotServices = async (req: Request, res: Response) => {
     const bulkOps: any[] = orderedIds.map((id: string, index: number) => ({
       updateOne: {
         filter: { _id: id },
-        update: { order: index + 1 },
+        update: { $set: { order: index + 1 } },
       },
     }));
 
