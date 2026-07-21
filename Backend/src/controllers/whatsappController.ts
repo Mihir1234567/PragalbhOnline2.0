@@ -749,6 +749,23 @@ export const sendTemplateManual = async (req: Request, res: Response) => {
   try {
     const { phoneNumber, templateName, language, variables, contactId } = req.body;
     
+    // Intercept welcome_message_utility to send dynamic list instead
+    if (templateName === "welcome_message_utility") {
+      const welcomeText = "પ્રગલ્ભ ઓનલાઈન માં તમારું સ્વાગત છે! 🙏";
+      const textRes = await sendTextMessage(phoneNumber, welcomeText);
+      if (contactId) {
+        await saveOutboundMessage(contactId, welcomeText, "text", textRes?.messages?.[0]?.id);
+      }
+      
+      const services = await WhatsAppBotService.find().sort({ order: 1 });
+      const listRes = await sendServicesList(phoneNumber, services, 1);
+      
+      if (contactId) {
+        await saveOutboundMessage(contactId, "Sent services_1", "template", listRes?.messages?.[0]?.id);
+      }
+      return res.json({ success: true, messageId: listRes?.messages?.[0]?.id });
+    }
+    
     let components: any[] = [];
     if (variables && variables.length > 0) {
       components = [
