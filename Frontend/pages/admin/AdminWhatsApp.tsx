@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate, PieChart as PieChartIcon, UserPlus } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
+import { toast } from "react-hot-toast";
 
 interface WhatsAppMessage {
   _id: string;
@@ -60,8 +61,15 @@ const getRequestedServices = (messages: any[]) => {
   if (!messages || messages.length === 0) return [];
   const services = new Set<string>();
   messages.forEach(m => {
-    if (m.direction === 'outbound' && m.messageType === 'template' && m.content.startsWith('Sent Service Details Template for ')) {
-      services.add(m.content.replace('Sent Service Details Template for ', ''));
+    if (m.direction === 'outbound') {
+      if (m.messageType === 'template' && m.content.startsWith('Sent Service Details Template for ')) {
+        services.add(m.content.replace('Sent Service Details Template for ', '').trim());
+      } else if (m.messageType === 'text' && m.content.startsWith('📄 *')) {
+        const textMatch = m.content.match(/^📄 \*(.*?)\*/);
+        if (textMatch) {
+          services.add(textMatch[1].trim());
+        }
+      }
     }
   });
   return Array.from(services);
@@ -147,10 +155,41 @@ const AdminWhatsApp: React.FC = () => {
     }
   };
 
+  const lastPollTimeRef = useRef<string | null>(null);
+
   const pollContacts = async () => {
     try {
-      const contactsRes = await api.get("/whatsapp/contacts");
-      setContacts(contactsRes.data);
+      let url = "/whatsapp/contacts";
+      if (lastPollTimeRef.current) {
+        url += `?since=${lastPollTimeRef.current}`;
+      }
+      const pollTime = new Date().toISOString();
+      const contactsRes = await api.get(url);
+      
+      const newData: WhatsAppContact[] = contactsRes.data;
+      if (newData.length > 0) {
+        setContacts((prev) => {
+          const updatedContacts = [...prev];
+          newData.forEach((newContact) => {
+            const existingIdx = updatedContacts.findIndex((c) => c._id === newContact._id);
+            if (existingIdx >= 0) {
+              const existing = updatedContacts[existingIdx];
+              // Merge messages, taking care not to duplicate
+              const existingMsgIds = new Set(existing.messages.map(m => m._id));
+              const newUniqueMsgs = newContact.messages.filter(m => !existingMsgIds.has(m._id));
+              
+              updatedContacts[existingIdx] = {
+                ...newContact,
+                messages: [...existing.messages, ...newUniqueMsgs]
+              };
+            } else {
+              updatedContacts.push(newContact);
+            }
+          });
+          return updatedContacts;
+        });
+      }
+      lastPollTimeRef.current = pollTime;
     } catch (error) {
       console.error("Failed to poll contacts", error);
     }
@@ -163,7 +202,7 @@ const AdminWhatsApp: React.FC = () => {
   useEffect(() => {
     let interval: any;
     if (activeTab === "chats") {
-      interval = setInterval(pollContacts, 10000); // Poll every 10s only in chats
+      interval = setInterval(pollContacts, 5000); // 5s for fast pseudo-real-time
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -214,7 +253,7 @@ const AdminWhatsApp: React.FC = () => {
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (error: any) {
       console.error("Failed to send template", error);
-      alert(`Failed to send template: ${error?.response?.data?.error || error.message}`);
+      toast.error(`Failed to send template: ${error?.response?.data?.error || error.message}`);
     } finally {
       setSendingTemplate(false);
     }
@@ -238,7 +277,7 @@ const AdminWhatsApp: React.FC = () => {
     
     // In this specific case, it's just the service dropdown. But to be safe we'll use the dropdown state.
     if (templateVariableValues.some(v => !v.trim())) {
-      alert("Please fill in all variables.");
+      toast.error("Please fill in all variables.");
       return;
     }
     
@@ -288,6 +327,25 @@ const AdminWhatsApp: React.FC = () => {
       }
       
       const tplData = metaTemplates.find(t => t.name === tplName);
+      
+      if (tplName.startsWith("services_")) {
+        return (
+          <div className="bg-black/10 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/10 mt-1 shadow-sm min-w-[200px] max-w-[280px]">
+            <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-70 border-b border-black/10 dark:border-white/10 pb-1">
+              <LayoutTemplate size={12} /> Interactive List
+            </div>
+            <div className="text-sm">
+              <div className="font-bold mb-1 text-slate-800 dark:text-white">સરકારી સેવાઓ</div>
+              <div className="whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-300 mb-3">
+                કૃપા કરીને નીચેના લિસ્ટમાંથી એક સેવા પસંદ કરો:
+              </div>
+              <div className="bg-white dark:bg-slate-800/50 text-center py-2 rounded-md font-medium text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700 shadow-sm">
+                ≡ સેવાઓ જુઓ
+              </div>
+            </div>
+          </div>
+        );
+      }
       
       return (
         <div className="bg-black/10 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/10 mt-1 shadow-sm min-w-[200px]">
@@ -344,7 +402,7 @@ const AdminWhatsApp: React.FC = () => {
       const { data } = await api.post("/whatsapp/contacts", addContactForm);
       setShowAddContactModal(false);
       setAddContactForm({ name: "", phoneNumber: "" });
-      await fetchData();
+      await loadInitialData();
       setActiveContactId(data._id);
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create contact");
@@ -387,7 +445,7 @@ const AdminWhatsApp: React.FC = () => {
       }
       setShowServiceForm(false);
       setIsEditingService(null);
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save service", error);
     }
@@ -397,7 +455,7 @@ const AdminWhatsApp: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this bot service?")) {
       try {
         await api.delete(`/whatsapp/services/${id}`);
-        fetchData();
+        loadInitialData();
       } catch (error) {
         console.error("Failed to delete service", error);
       }
@@ -410,7 +468,7 @@ const AdminWhatsApp: React.FC = () => {
       await api.put("/whatsapp/services/reorder", { orderedIds });
       setHasUnsavedOrder(false);
       setIsReordering(false);
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save order", error);
     }
@@ -423,7 +481,7 @@ const AdminWhatsApp: React.FC = () => {
       await api.post("/whatsapp/quick-replies", quickReplyForm);
       setShowQuickReplyForm(false);
       setQuickReplyForm({ title: "", text: "" });
-      fetchData();
+      loadInitialData();
     } catch (error) {
       console.error("Failed to save quick reply", error);
     }
@@ -433,7 +491,7 @@ const AdminWhatsApp: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this quick reply?")) {
       try {
         await api.delete(`/whatsapp/quick-replies/${id}`);
-        fetchData();
+        loadInitialData();
       } catch (error) {
         console.error("Failed to delete quick reply", error);
       }
@@ -471,7 +529,7 @@ const AdminWhatsApp: React.FC = () => {
       setEditingContactId(null);
     } catch (error) {
       console.error("Failed to update contact", error);
-      alert("Failed to update contact");
+      toast.error("Failed to update contact");
     }
   };
 

@@ -67,47 +67,63 @@ const processMessageStatus = async (statusObj: any) => {
 };
 
 const processIncomingMessage = async (msgData: any, contacts: any[]) => {
-  const phoneNumber = msgData.from;
-  const msgType = msgData.type;
-
-  let customerName = "";
-  if (contacts && contacts.length > 0) {
-    customerName = contacts[0].profile?.name || "";
-  }
-
-  // Get or create contact
-  let contact = await WhatsAppContact.findOne({ phoneNumber });
-  let isNewContact = false;
-  if (!contact) {
-    contact = new WhatsAppContact({ 
-      phoneNumber, 
-      name: customerName, 
-      currentPage: 1,
-      status: "open",
-      unreadCount: 1
-    });
-    await contact.save();
-    isNewContact = true;
-  } else {
-    if (customerName && !contact.name) {
-      contact.name = customerName;
+  try {
+    const msgId = msgData.id;
+    if (msgId) {
+      const existingMsg = await WhatsAppMessage.findOne({ wamId: msgId, direction: "inbound" });
+      if (existingMsg) {
+        console.log(`Duplicate message ignored: ${msgId}`);
+        return;
+      }
     }
-    contact.unreadCount = (contact.unreadCount || 0) + 1;
-    contact.status = "open";
-    await contact.save();
-  }
 
-  // Save inbound message
-  await WhatsAppMessage.create({
-    contactId: contact._id,
-    direction: "inbound",
-    content: JSON.stringify(msgData),
-    messageType: msgType,
-  });
+    const phoneNumber = msgData.from;
+    const msgType = msgData.type;
+
+    let customerName = "";
+    if (contacts && contacts.length > 0) {
+      customerName = contacts[0].profile?.name || "";
+    }
+
+    // Get or create contact
+    let contact = await WhatsAppContact.findOne({ phoneNumber });
+    let isNewContact = false;
+    if (!contact) {
+      contact = new WhatsAppContact({ 
+        phoneNumber, 
+        name: customerName, 
+        currentPage: 1,
+        status: "open",
+        unreadCount: 1
+      });
+      await contact.save();
+      isNewContact = true;
+    } else {
+      if (customerName && !contact.name) {
+        contact.name = customerName;
+      }
+      contact.unreadCount = (contact.unreadCount || 0) + 1;
+      contact.status = "open";
+      await contact.save();
+    }
+
+    // Save inbound message
+    const newMsg = await WhatsAppMessage.create({
+      contactId: contact._id,
+      direction: "inbound",
+      content: JSON.stringify(msgData),
+      messageType: msgType,
+      wamId: msgId,
+    });
 
   if (isNewContact) {
-    const response = await sendWelcomeTemplate(phoneNumber);
-    await saveOutboundMessage(contact._id, "Sent Welcome Template", "template", response?.messages?.[0]?.id);
+    const welcomeText = "પ્રગલ્ભ ઓનલાઈન માં તમારું સ્વાગત છે! 🙏";
+    const textRes = await sendTextMessage(phoneNumber, welcomeText);
+    await saveOutboundMessage(contact._id, welcomeText, "text", textRes?.messages?.[0]?.id);
+
+    const services = await WhatsAppBotService.find().sort({ order: 1 });
+    const listRes = await sendServicesList(phoneNumber, services, 1);
+    await saveOutboundMessage(contact._id, "Sent services_1", "template", listRes?.messages?.[0]?.id);
     return;
   }
 
@@ -116,8 +132,14 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
     if (textBody === "hi" || textBody === "hello") {
       contact.currentPage = 1;
       await contact.save();
-      const response = await sendWelcomeTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent Welcome Template", "template", response?.messages?.[0]?.id);
+      
+      const welcomeText = "પ્રગલ્ભ ઓનલાઈન માં તમારું સ્વાગત છે! 🙏";
+      const textRes = await sendTextMessage(phoneNumber, welcomeText);
+      await saveOutboundMessage(contact._id, welcomeText, "text", textRes?.messages?.[0]?.id);
+
+      const services = await WhatsAppBotService.find().sort({ order: 1 });
+      const listRes = await sendServicesList(phoneNumber, services, 1);
+      await saveOutboundMessage(contact._id, "Sent services_1", "template", listRes?.messages?.[0]?.id);
     } else if (textBody === "test") {
       const response = await sendLimitReachedTemplate(phoneNumber);
       await saveOutboundMessage(contact._id, "Sent limit reached template", "template", response?.messages?.[0]?.id);
@@ -149,7 +171,16 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         const response = await sendServicesList(phoneNumber, services, 1);
         await saveOutboundMessage(contact._id, "Sent services list page 1", "interactive", response?.messages?.[0]?.id);
       } else {
-        const service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        const escapedTitle = buttonTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        if (!service) {
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(`^${escapedTitle}`, 'i') } });
+        }
+        if (!service) {
+           // Also try matching if DB title contains the button title (to handle truncation)
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(escapedTitle, 'i') } });
+        }
+        
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
@@ -178,7 +209,12 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
           await saveOutboundMessage(contact._id, "Sent welcome_services", "template", response?.messages?.[0]?.id);
         }
     } else {
-        const service = await WhatsAppBotService.findOne({ title: buttonTitle });
+        const escapedTitle = buttonTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(`^${escapedTitle}`, 'i') } });
+        if (!service) {
+           service = await WhatsAppBotService.findOne({ title: { $regex: new RegExp(escapedTitle, 'i') } });
+        }
+        
         if (service) {
           await handleServiceRequest(contact, phoneNumber, service);
         } else {
@@ -187,9 +223,12 @@ const processIncomingMessage = async (msgData: any, contacts: any[]) => {
         }
     }
   }
+  } catch (error) {
+    console.error("Error in processIncomingMessage:", error);
+  }
 };
 
-const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDetails: any) => {
+async function handleServiceRequest(contact: any, phoneNumber: string, serviceDetails: any) {
   if (!serviceDetails) {
     const response = await sendTextMessage(phoneNumber, "Service not found.");
     await saveOutboundMessage(contact._id, "Service not found.", "text", response?.messages?.[0]?.id);
@@ -205,21 +244,28 @@ const handleServiceRequest = async (contact: any, phoneNumber: string, serviceDe
     }
 
     if ((contact.servicesRequestedToday || 0) >= dailyLimit) {
-      const response = await sendLimitReachedTemplate(phoneNumber);
-      await saveOutboundMessage(contact._id, "Sent Limit Reached Template", "template", response?.messages?.[0]?.id);
+      const text = `⚠️ *મર્યાદા પૂર્ણ*\n\nતમે આજની સેવાની મર્યાદા (${dailyLimit}) પૂર્ણ કરી છે. કૃપા કરીને કાલે ફરી પ્રયાસ કરો.`;
+      const response = await sendTextMessage(phoneNumber, text);
+      await saveOutboundMessage(contact._id, text, "text", response?.messages?.[0]?.id);
       return;
     }
   }
 
-  const response = await sendServiceDetailsTemplate(phoneNumber, serviceDetails);
+  const docsList = (serviceDetails.documents && serviceDetails.documents.length > 0) 
+    ? serviceDetails.documents.map((d: string) => `• ${d}`).join('\n') 
+    : "માહિતી ઉપલબ્ધ નથી";
+  
+  const textMsg = `📄 *${serviceDetails.title}*\n\n*જરૂરી દસ્તાવેજોની યાદી:*\n${docsList}`;
+  const response = await sendTextMessage(phoneNumber, textMsg);
+  
   contact.lastServiceViewedAt = new Date();
   contact.servicesRequestedToday = (contact.servicesRequestedToday || 0) + 1;
   await contact.save();
-  await saveOutboundMessage(contact._id, `Sent Service Details Template for ${serviceDetails.title}`, "template", response?.messages?.[0]?.id);
+  await saveOutboundMessage(contact._id, textMsg, "text", response?.messages?.[0]?.id);
 };
 
-const saveOutboundMessage = async (contactId: any, content: string, messageType: string, wamId?: string) => {
-  await WhatsAppMessage.create({
+async function saveOutboundMessage(contactId: any, content: string, messageType: string, wamId?: string) {
+  const newMsg = await WhatsAppMessage.create({
     contactId,
     direction: "outbound",
     content,
@@ -227,7 +273,7 @@ const saveOutboundMessage = async (contactId: any, content: string, messageType:
     wamId,
     status: wamId ? "sent" : undefined
   });
-};
+}
 
 // CRM APIs
 
@@ -304,8 +350,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
           $match: {
             ...dateFilter,
             direction: "outbound",
-            messageType: "template",
-            content: { $regex: /^Sent Service Details Template for /i },
+            $or: [
+              {
+                messageType: "template",
+                content: { $regex: /^Sent Service Details Template for /i }
+              },
+              {
+                messageType: "text",
+                content: { $regex: /^📄 \*/ }
+              }
+            ]
           },
         },
         {
@@ -329,8 +383,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
           $match: {
             ...dateFilter,
             direction: "outbound",
-            messageType: "template",
-            content: { $regex: /^Sent Service Details Template for /i },
+            $or: [
+              {
+                messageType: "template",
+                content: { $regex: /^Sent Service Details Template for /i }
+              },
+              {
+                messageType: "text",
+                content: { $regex: /^📄 \*/ }
+              }
+            ]
           },
         },
         { $sort: { createdAt: -1 } },
@@ -364,7 +426,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
     });
 
     allServicesRaw.forEach((s) => {
-      const parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
+      let parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
+      const textMatch = s._id.match(/^📄 \*(.*?)\*/);
+      if (textMatch) {
+        parsedTitle = textMatch[1].trim();
+      }
       const lowerTitle = parsedTitle.toLowerCase();
       const mappedContacts = s.contacts.map((c: any) => ({ name: c.name, phoneNumber: c.phoneNumber }));
 
@@ -383,12 +449,19 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const allServices = Array.from(servicesMap.values()).sort((a: any, b: any) => b.count - a.count);
 
-    const recentServiceRequests = recentRequestsRaw.map((msg) => ({
-      userName: msg.contact.name || "Unknown",
-      phoneNumber: msg.contact.phoneNumber,
-      serviceTitle: msg.content.replace(/Sent Service Details Template for /i, "").trim(),
-      timestamp: msg.createdAt,
-    }));
+    const recentServiceRequests = recentRequestsRaw.map((msg) => {
+      let serviceTitle = msg.content.replace(/Sent Service Details Template for /i, "").trim();
+      const textMatch = msg.content.match(/^📄 \*(.*?)\*/);
+      if (textMatch) {
+        serviceTitle = textMatch[1].trim();
+      }
+      return {
+        userName: msg.contact.name || "Unknown",
+        phoneNumber: msg.contact.phoneNumber,
+        serviceTitle,
+        timestamp: msg.createdAt,
+      };
+    });
 
     res.json({
       totalUsers,
@@ -409,11 +482,27 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
 export const getAllContacts = async (req: Request, res: Response) => {
   try {
-    const contacts = await WhatsAppContact.find().sort({ updatedAt: -1 }).lean();
+    const { since } = req.query;
+    let contactFilter: any = {};
+    let messageFilter: any = {};
     
-    // Fix N+1 query problem: fetch all messages for these contacts in one query
+    if (since && typeof since === 'string') {
+      const sinceDate = new Date(since);
+      contactFilter = { updatedAt: { $gte: sinceDate } };
+      messageFilter = { createdAt: { $gte: sinceDate } };
+    }
+
+    const contacts = await WhatsAppContact.find(contactFilter).sort({ updatedAt: -1 }).lean();
+    
+    if (since && contacts.length === 0) {
+      return res.json([]);
+    }
+    
     const contactIds = contacts.map(c => c._id);
-    const allMessages = await WhatsAppMessage.find({ contactId: { $in: contactIds } })
+    const allMessages = await WhatsAppMessage.find({ 
+      contactId: { $in: contactIds },
+      ...messageFilter
+    })
       .sort({ createdAt: 1 })
       .lean();
       
@@ -478,7 +567,7 @@ export const reorderBotServices = async (req: Request, res: Response) => {
     const bulkOps: any[] = orderedIds.map((id: string, index: number) => ({
       updateOne: {
         filter: { _id: id },
-        update: { order: index + 1 },
+        update: { $set: { order: index + 1 } },
       },
     }));
 
@@ -675,6 +764,23 @@ export const getTemplates = async (req: Request, res: Response) => {
 export const sendTemplateManual = async (req: Request, res: Response) => {
   try {
     const { phoneNumber, templateName, language, variables, contactId } = req.body;
+    
+    // Intercept welcome_message_utility to send dynamic list instead
+    if (templateName === "welcome_message_utility") {
+      const welcomeText = "પ્રગલ્ભ ઓનલાઈન માં તમારું સ્વાગત છે! 🙏";
+      const textRes = await sendTextMessage(phoneNumber, welcomeText);
+      if (contactId) {
+        await saveOutboundMessage(contactId, welcomeText, "text", textRes?.messages?.[0]?.id);
+      }
+      
+      const services = await WhatsAppBotService.find().sort({ order: 1 });
+      const listRes = await sendServicesList(phoneNumber, services, 1);
+      
+      if (contactId) {
+        await saveOutboundMessage(contactId, "Sent services_1", "template", listRes?.messages?.[0]?.id);
+      }
+      return res.json({ success: true, messageId: listRes?.messages?.[0]?.id });
+    }
     
     let components: any[] = [];
     if (variables && variables.length > 0) {

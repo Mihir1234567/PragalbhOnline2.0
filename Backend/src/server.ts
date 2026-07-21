@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
@@ -9,7 +10,9 @@ import { ensureAdmin } from "./utils/bootstrapAdmin";
 dotenv.config();
 
 const app = express();
-export { app };
+const server = http.createServer(app);
+
+export { app, server };
 
 // CORS configuration (supports prod + preview + localhost)
 const allowedOrigins = [
@@ -22,22 +25,20 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow server-to-server & curl requests
       if (!origin) return callback(null, true);
-
-      const isAllowed = allowedOrigins.some((allowed) =>
-        typeof allowed === "string"
-          ? allowed === origin
-          : allowed.test(origin)
-      );
-
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS blocked origin: ${origin}`));
+      if (
+        origin.endsWith(".vercel.app") ||
+        origin.startsWith("http://localhost")
+      ) {
+        return callback(null, true);
       }
+      const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
+      if (allowedOrigins.includes(origin) || allowedOrigins.length === 0) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+    credentials: true,
   })
 );
 app.use(helmet());
@@ -72,7 +73,7 @@ const startServer = async () => {
   try {
     await connectDB();
     await ensureAdmin();
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
