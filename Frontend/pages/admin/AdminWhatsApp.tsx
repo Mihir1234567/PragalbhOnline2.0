@@ -150,8 +150,10 @@ const AdminWhatsApp: React.FC = () => {
         })
       );
       setInputText("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send message", error);
+      const errorMsg = error.response?.data?.error || error.message || "Failed to send message";
+      alert("Error sending message: " + (typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg));
     }
   };
 
@@ -193,9 +195,9 @@ const AdminWhatsApp: React.FC = () => {
     e.preventDefault();
     try {
       const { data } = await api.post("/whatsapp/contacts", addContactForm);
-      setContacts([{ ...data, messages: [] }, ...contacts]);
       setShowAddContactModal(false);
       setAddContactForm({ name: "", phoneNumber: "" });
+      await fetchData();
       setActiveContactId(data._id);
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create contact");

@@ -336,9 +336,10 @@ export const sendManualMessage = async (req: Request, res: Response) => {
     });
 
     res.json(newMessage);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to send message", error);
-    res.status(500).json({ error: "Failed to send message" });
+    const errorMsg = error?.message || error?.error_user_msg || error?.error?.message || "Failed to send message";
+    res.status(500).json({ error: errorMsg });
   }
 };
 
