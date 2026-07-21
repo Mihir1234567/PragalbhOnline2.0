@@ -577,10 +577,18 @@ export const getTemplates = async (req: Request, res: Response) => {
 
 export const sendTemplateManual = async (req: Request, res: Response) => {
   try {
-    const { phoneNumber, templateName, language, contactId } = req.body;
+    const { phoneNumber, templateName, language, variables, contactId } = req.body;
     
     let components: any[] = [];
-    if (templateName === "service_details") {
+    if (variables && variables.length > 0) {
+      components = [
+        {
+          type: "body",
+          parameters: variables.map((v: string) => ({ type: "text", text: String(v) })),
+        },
+      ];
+    } else if (templateName === "service_details") {
+      // Fallback for backward compatibility if frontend doesn't send variables
       components = [
         {
           type: "body",

@@ -103,6 +103,8 @@ const AdminWhatsApp: React.FC = () => {
   const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState(false);
+  const [selectedTemplateForVariables, setSelectedTemplateForVariables] = useState<any>(null);
+  const [templateVariableValues, setTemplateVariableValues] = useState<string[]>([]);
 
   // Analytics State
   const [analytics, setAnalytics] = useState<WhatsAppAnalytics | null>(null);
@@ -157,7 +159,7 @@ const AdminWhatsApp: React.FC = () => {
   }, [activeContact?.messages.length, activeTab]);
 
   // Chat Handlers
-  const handleSendTemplate = async (templateName: string, language: string) => {
+  const handleSendTemplate = async (templateName: string, language: string, variables?: string[]) => {
     if (!activeContactId) return;
     setSendingTemplate(true);
     try {
@@ -168,6 +170,7 @@ const AdminWhatsApp: React.FC = () => {
         phoneNumber: contact.phoneNumber,
         templateName,
         language,
+        variables,
         contactId: contact._id
       });
       
@@ -187,6 +190,7 @@ const AdminWhatsApp: React.FC = () => {
         )
       );
       setShowTemplateModal(false);
+      setSelectedTemplateForVariables(null);
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error("Failed to send template", error);
@@ -194,6 +198,31 @@ const AdminWhatsApp: React.FC = () => {
     } finally {
       setSendingTemplate(false);
     }
+  };
+
+  const handleTemplateClick = (tpl: any) => {
+    const bodyComponent = tpl.components?.find((c: any) => c.type === 'BODY');
+    if (bodyComponent && bodyComponent.text) {
+      const match = bodyComponent.text.match(/{{\d+}}/g);
+      if (match && match.length > 0) {
+        setSelectedTemplateForVariables(tpl);
+        setTemplateVariableValues(new Array(match.length).fill(""));
+        return;
+      }
+    }
+    handleSendTemplate(tpl.name, tpl.language);
+  };
+
+  const handleSendTemplateWithVariables = () => {
+    if (!selectedTemplateForVariables) return;
+    
+    // In this specific case, it's just the service dropdown. But to be safe we'll use the dropdown state.
+    if (templateVariableValues.some(v => !v.trim())) {
+      alert("Please fill in all variables.");
+      return;
+    }
+    
+    handleSendTemplate(selectedTemplateForVariables.name, selectedTemplateForVariables.language, templateVariableValues);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -1558,7 +1587,79 @@ const AdminWhatsApp: React.FC = () => {
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
-              {metaTemplates.length === 0 ? (
+              {selectedTemplateForVariables ? (
+                <div className="space-y-4">
+                  <button 
+                    className="text-sm text-indigo-500 hover:text-indigo-600 flex items-center gap-1 mb-4"
+                    onClick={() => setSelectedTemplateForVariables(null)}
+                  >
+                    ← Back to templates
+                  </button>
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mb-4">
+                    <h4 className="font-semibold mb-2">{selectedTemplateForVariables.name}</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
+                      {selectedTemplateForVariables.components?.find((c: any) => c.type === 'BODY')?.text}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-slate-800 dark:text-white">Variables Required</h4>
+                    <div className="text-sm text-slate-500 mb-2">Select a service to automatically populate the variables:</div>
+                    
+                    <select
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      onChange={(e) => {
+                        const srv = services.find(s => s._id === e.target.value);
+                        if (srv && templateVariableValues.length >= 2) {
+                          const newValues = [...templateVariableValues];
+                          newValues[0] = srv.title;
+                          newValues[1] = srv.documents && srv.documents.length > 0 
+                                         ? srv.documents.map((d: any) => d.name).join(", ") 
+                                         : "કોઈ દસ્તાવેજ જરૂરી નથી";
+                          setTemplateVariableValues(newValues);
+                        } else if (srv && templateVariableValues.length === 1) {
+                          const newValues = [...templateVariableValues];
+                          newValues[0] = srv.title;
+                          setTemplateVariableValues(newValues);
+                        }
+                      }}
+                    >
+                      <option value="">-- Select a Service --</option>
+                      {services.map(s => (
+                        <option key={s._id} value={s._id}>{s.title}</option>
+                      ))}
+                    </select>
+                    
+                    <div className="pt-2">
+                      <div className="text-xs text-slate-500 mb-3">Or manually edit the values below:</div>
+                      {templateVariableValues.map((val, idx) => (
+                        <div key={idx} className="flex flex-col mb-3">
+                          <label className="text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">Variable {`{{${idx + 1}}}`}</label>
+                          <input
+                            type="text"
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            value={val}
+                            onChange={(e) => {
+                              const newVals = [...templateVariableValues];
+                              newVals[idx] = e.target.value;
+                              setTemplateVariableValues(newVals);
+                            }}
+                            placeholder={`Value for {{${idx + 1}}}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleSendTemplateWithVariables}
+                    disabled={sendingTemplate}
+                    className="w-full mt-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                  >
+                    {sendingTemplate ? "Sending..." : "Send Template"}
+                  </button>
+                </div>
+              ) : metaTemplates.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <LayoutTemplate size={48} className="mx-auto mb-4 opacity-20" />
                   <p>No templates found or missing WABA_ID.</p>
@@ -1570,7 +1671,7 @@ const AdminWhatsApp: React.FC = () => {
                     <div 
                       key={tpl.id} 
                       className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col"
-                      onClick={() => handleSendTemplate(tpl.name, tpl.language)}
+                      onClick={() => handleTemplateClick(tpl)}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-semibold text-slate-800 dark:text-white truncate">{tpl.name}</span>
