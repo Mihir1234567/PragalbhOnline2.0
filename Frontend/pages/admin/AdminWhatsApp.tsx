@@ -297,6 +297,25 @@ const AdminWhatsApp: React.FC = () => {
       
       const tplData = metaTemplates.find(t => t.name === tplName);
       
+      if (tplName.startsWith("services_")) {
+        return (
+          <div className="bg-black/10 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/10 mt-1 shadow-sm min-w-[200px] max-w-[280px]">
+            <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-70 border-b border-black/10 dark:border-white/10 pb-1">
+              <LayoutTemplate size={12} /> Interactive List
+            </div>
+            <div className="text-sm">
+              <div className="font-bold mb-1 text-slate-800 dark:text-white">સરકારી સેવાઓ</div>
+              <div className="whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-300 mb-3">
+                કૃપા કરીને નીચેના લિસ્ટમાંથી એક સેવા પસંદ કરો:
+              </div>
+              <div className="bg-white dark:bg-slate-800/50 text-center py-2 rounded-md font-medium text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700 shadow-sm">
+                ≡ સેવાઓ જુઓ
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="bg-black/10 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/10 mt-1 shadow-sm min-w-[200px]">
           <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-70 border-b border-black/10 dark:border-white/10 pb-1">
