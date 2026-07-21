@@ -233,9 +233,67 @@ const saveOutboundMessage = async (contactId: any, content: string, messageType:
 
 export const getAnalytics = async (req: Request, res: Response) => {
   try {
-    const totalUsers = await WhatsAppContact.countDocuments();
-    const totalInbound = await WhatsAppMessage.countDocuments({ direction: "inbound" });
-    const totalOutbound = await WhatsAppMessage.countDocuments({ direction: "outbound" });
+    const { range } = req.query;
+    let dateFilter: any = {};
+    let startDate = new Date(0); // Epoch as default for all_time
+    
+    if (range && range !== "all_time") {
+      const now = new Date();
+      startDate = new Date();
+      if (range === "today") {
+        startDate.setHours(0, 0, 0, 0);
+      } else if (range === "last_7_days") {
+        startDate.setDate(now.getDate() - 7);
+      } else if (range === "this_month") {
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+      }
+      dateFilter.createdAt = { $gte: startDate };
+    }
+
+    const totalUsers = await WhatsAppContact.countDocuments(dateFilter);
+    const totalInbound = await WhatsAppMessage.countDocuments({ ...dateFilter, direction: "inbound" });
+    const totalOutbound = await WhatsAppMessage.countDocuments({ ...dateFilter, direction: "outbound" });
+
+    // Engagement Metrics
+    let returningUsersCount = 0;
+    let newUsersCount = 0;
+    
+    if (range === "all_time" || !range) {
+      const contactMessageCounts = await WhatsAppMessage.aggregate([
+        { $match: { direction: "inbound" } },
+        { $group: { _id: "$contactId", count: { $sum: 1 } } }
+      ]);
+      returningUsersCount = contactMessageCounts.filter(c => c.count > 1).length;
+      newUsersCount = contactMessageCounts.filter(c => c.count === 1).length;
+    } else {
+      const usersInPeriod = await WhatsAppMessage.distinct("contactId", { ...dateFilter, direction: "inbound" });
+      const allContacts = await WhatsAppContact.find({ _id: { $in: usersInPeriod } });
+      allContacts.forEach(c => {
+        if (c.createdAt && new Date(c.createdAt) >= startDate) newUsersCount++;
+        else returningUsersCount++;
+      });
+    }
+
+    // Timeline for Charts
+    const timelineRaw = await WhatsAppMessage.aggregate([
+      { $match: Object.keys(dateFilter).length > 0 ? dateFilter : {} },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          messages: { $sum: 1 },
+          inbound: { $sum: { $cond: [{ $eq: ["$direction", "inbound"] }, 1, 0] } },
+          outbound: { $sum: { $cond: [{ $eq: ["$direction", "outbound"] }, 1, 0] } }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    const activityTimeline = timelineRaw.map(t => ({
+      date: t._id,
+      messages: t.messages,
+      inbound: t.inbound,
+      outbound: t.outbound
+    }));
 
     const actualServices = await WhatsAppBotService.find();
     const servicesMap = new Map();
@@ -250,6 +308,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const allServicesRaw = await WhatsAppMessage.aggregate([
       {
         $match: {
+          ...dateFilter,
           direction: "outbound",
           messageType: "template",
           content: { $regex: /^Sent Service Details Template for /i },
@@ -295,6 +354,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const recentRequestsRaw = await WhatsAppMessage.aggregate([
       {
         $match: {
+          ...dateFilter,
           direction: "outbound",
           messageType: "template",
           content: { $regex: /^Sent Service Details Template for /i },
@@ -331,6 +391,9 @@ export const getAnalytics = async (req: Request, res: Response) => {
       totalMessages: totalInbound + totalOutbound,
       totalInbound,
       totalOutbound,
+      returningUsersCount,
+      newUsersCount,
+      activityTimeline,
       allServices,
       recentServiceRequests,
     });

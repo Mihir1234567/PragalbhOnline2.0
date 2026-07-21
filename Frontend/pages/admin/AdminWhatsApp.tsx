@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate } from "lucide-react";
+import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate, PieChart as PieChartIcon, UserPlus } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -40,14 +40,21 @@ interface BotService {
   order: number;
 }
 
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
 interface WhatsAppAnalytics {
   totalUsers: number;
   totalMessages: number;
   totalInbound: number;
   totalOutbound: number;
+  returningUsersCount: number;
+  newUsersCount: number;
+  activityTimeline: { date: string; messages: number; inbound: number; outbound: number }[];
   allServices: { title: string; count: number; contacts: { name: string; phoneNumber: string }[] }[];
   recentServiceRequests: { userName: string; phoneNumber: string; serviceTitle: string; timestamp: string }[];
 }
+
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
 const getRequestedServices = (messages: any[]) => {
   if (!messages || messages.length === 0) return [];
@@ -108,6 +115,7 @@ const AdminWhatsApp: React.FC = () => {
 
   // Analytics State
   const [analytics, setAnalytics] = useState<WhatsAppAnalytics | null>(null);
+  const [analyticsDateRange, setAnalyticsDateRange] = useState("all_time");
   const [servicesSearchQuery, setServicesSearchQuery] = useState("");
   const [servicesSortBy, setServicesSortBy] = useState<"most" | "least" | "name_asc" | "name_desc">("most");
 
@@ -123,7 +131,7 @@ const AdminWhatsApp: React.FC = () => {
       const [contactsRes, servicesRes, analyticsRes, quickRepliesRes, templatesRes] = await Promise.all([
         api.get("/whatsapp/contacts"),
         api.get("/whatsapp/services"),
-        api.get("/whatsapp/analytics"),
+        api.get(`/whatsapp/analytics?range=${analyticsDateRange}`),
         api.get("/whatsapp/quick-replies"),
         api.get("/whatsapp/templates").catch(() => ({ data: { data: [] } })),
       ]);
@@ -148,7 +156,7 @@ const AdminWhatsApp: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeTab]);
+  }, [activeTab, analyticsDateRange]);
 
   const activeContact = contacts.find((c) => c._id === activeContactId);
 
@@ -1032,9 +1040,21 @@ const AdminWhatsApp: React.FC = () => {
       {/* Analytics Tab */}
       {activeTab === "analytics" && analytics && (
         <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">WhatsApp Engagement Analytics</h2>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">WhatsApp Engagement Analytics</h2>
+            <select
+              value={analyticsDateRange}
+              onChange={(e) => setAnalyticsDateRange(e.target.value)}
+              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white shadow-sm"
+            >
+              <option value="all_time">All Time</option>
+              <option value="today">Today</option>
+              <option value="last_7_days">Last 7 Days</option>
+              <option value="this_month">This Month</option>
+            </select>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-slate-500 dark:text-slate-400 font-medium">Total Unique Users</div>
@@ -1070,6 +1090,87 @@ const AdminWhatsApp: React.FC = () => {
                 </div>
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.totalOutbound.toLocaleString()}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-slate-500 dark:text-slate-400 font-medium">Returning vs New</div>
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                  <UserPlus size={20} />
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{analytics.returningUsersCount.toLocaleString()} <span className="text-sm font-normal text-slate-500">Returning</span></div>
+                <div className="text-lg font-semibold text-slate-700 dark:text-slate-300">{analytics.newUsersCount.toLocaleString()} <span className="text-sm font-normal text-slate-500">New</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* Timeline Chart */}
+            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Message Activity</h3>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.activityTimeline} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorInbound" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorOutbound" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                    <Area type="monotone" dataKey="inbound" name="Received" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorInbound)" />
+                    <Area type="monotone" dataKey="outbound" name="Sent" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorOutbound)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Services Doughnut Chart */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Services Requested</h3>
+              <div className="h-72 w-full">
+                {analytics.allServices.filter(s => s.count > 0).length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analytics.allServices.filter(s => s.count > 0).slice(0, 5)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="count"
+                        nameKey="title"
+                      >
+                        {analytics.allServices.filter(s => s.count > 0).slice(0, 5).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" layout="vertical" verticalAlign="bottom" align="center" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                    <PieChartIcon size={48} className="mb-2 opacity-20" />
+                    <p>No service requests in this period</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
