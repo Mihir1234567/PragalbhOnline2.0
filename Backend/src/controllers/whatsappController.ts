@@ -251,43 +251,102 @@ export const getAnalytics = async (req: Request, res: Response) => {
       dateFilter.createdAt = { $gte: startDate };
     }
 
-    const totalUsers = await WhatsAppContact.countDocuments(dateFilter);
-    const totalInbound = await WhatsAppMessage.countDocuments({ ...dateFilter, direction: "inbound" });
-    const totalOutbound = await WhatsAppMessage.countDocuments({ ...dateFilter, direction: "outbound" });
+    const engagementPromise = (async () => {
+      if (range === "all_time" || !range) {
+        const contactMessageCounts = await WhatsAppMessage.aggregate([
+          { $match: { direction: "inbound" } },
+          { $group: { _id: "$contactId", count: { $sum: 1 } } }
+        ]);
+        const returning = contactMessageCounts.filter(c => c.count > 1).length;
+        const newUsers = contactMessageCounts.filter(c => c.count === 1).length;
+        return { returning, newUsers };
+      } else {
+        const usersInPeriod = await WhatsAppMessage.distinct("contactId", { ...dateFilter, direction: "inbound" });
+        const allContacts = await WhatsAppContact.find({ _id: { $in: usersInPeriod } });
+        let returning = 0, newUsers = 0;
+        allContacts.forEach(c => {
+          if (c.createdAt && new Date(c.createdAt) >= startDate) newUsers++;
+          else returning++;
+        });
+        return { returning, newUsers };
+      }
+    })();
 
-    // Engagement Metrics
-    let returningUsersCount = 0;
-    let newUsersCount = 0;
-    
-    if (range === "all_time" || !range) {
-      const contactMessageCounts = await WhatsAppMessage.aggregate([
-        { $match: { direction: "inbound" } },
-        { $group: { _id: "$contactId", count: { $sum: 1 } } }
-      ]);
-      returningUsersCount = contactMessageCounts.filter(c => c.count > 1).length;
-      newUsersCount = contactMessageCounts.filter(c => c.count === 1).length;
-    } else {
-      const usersInPeriod = await WhatsAppMessage.distinct("contactId", { ...dateFilter, direction: "inbound" });
-      const allContacts = await WhatsAppContact.find({ _id: { $in: usersInPeriod } });
-      allContacts.forEach(c => {
-        if (c.createdAt && new Date(c.createdAt) >= startDate) newUsersCount++;
-        else returningUsersCount++;
-      });
-    }
-
-    // Timeline for Charts
-    const timelineRaw = await WhatsAppMessage.aggregate([
-      { $match: Object.keys(dateFilter).length > 0 ? dateFilter : {} },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          messages: { $sum: 1 },
-          inbound: { $sum: { $cond: [{ $eq: ["$direction", "inbound"] }, 1, 0] } },
-          outbound: { $sum: { $cond: [{ $eq: ["$direction", "outbound"] }, 1, 0] } }
+    const [
+      totalUsers,
+      totalInbound,
+      totalOutbound,
+      engagement,
+      timelineRaw,
+      actualServices,
+      allServicesRaw,
+      recentRequestsRaw
+    ] = await Promise.all([
+      WhatsAppContact.countDocuments(dateFilter),
+      WhatsAppMessage.countDocuments({ ...dateFilter, direction: "inbound" }),
+      WhatsAppMessage.countDocuments({ ...dateFilter, direction: "outbound" }),
+      engagementPromise,
+      WhatsAppMessage.aggregate([
+        { $match: Object.keys(dateFilter).length > 0 ? dateFilter : {} },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            messages: { $sum: 1 },
+            inbound: { $sum: { $cond: [{ $eq: ["$direction", "inbound"] }, 1, 0] } },
+            outbound: { $sum: { $cond: [{ $eq: ["$direction", "outbound"] }, 1, 0] } }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      WhatsAppBotService.find(),
+      WhatsAppMessage.aggregate([
+        {
+          $match: {
+            ...dateFilter,
+            direction: "outbound",
+            messageType: "template",
+            content: { $regex: /^Sent Service Details Template for /i },
+          },
+        },
+        {
+          $group: {
+            _id: "$content",
+            count: { $sum: 1 },
+            contactIds: { $addToSet: "$contactId" },
+          },
+        },
+        {
+          $lookup: {
+            from: "whatsappcontacts",
+            localField: "contactIds",
+            foreignField: "_id",
+            as: "contacts",
+          },
         }
-      },
-      { $sort: { _id: 1 } }
+      ]),
+      WhatsAppMessage.aggregate([
+        {
+          $match: {
+            ...dateFilter,
+            direction: "outbound",
+            messageType: "template",
+            content: { $regex: /^Sent Service Details Template for /i },
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        { $limit: 50 },
+        {
+          $lookup: {
+            from: "whatsappcontacts",
+            localField: "contactId",
+            foreignField: "_id",
+            as: "contact",
+          },
+        },
+        { $unwind: "$contact" },
+      ])
     ]);
+
     const activityTimeline = timelineRaw.map(t => ({
       date: t._id,
       messages: t.messages,
@@ -295,7 +354,6 @@ export const getAnalytics = async (req: Request, res: Response) => {
       outbound: t.outbound
     }));
 
-    const actualServices = await WhatsAppBotService.find();
     const servicesMap = new Map();
     actualServices.forEach(s => {
       servicesMap.set(s.title.toLowerCase().trim(), {
@@ -304,32 +362,6 @@ export const getAnalytics = async (req: Request, res: Response) => {
         contacts: []
       });
     });
-
-    const allServicesRaw = await WhatsAppMessage.aggregate([
-      {
-        $match: {
-          ...dateFilter,
-          direction: "outbound",
-          messageType: "template",
-          content: { $regex: /^Sent Service Details Template for /i },
-        },
-      },
-      {
-        $group: {
-          _id: "$content",
-          count: { $sum: 1 },
-          contactIds: { $addToSet: "$contactId" },
-        },
-      },
-      {
-        $lookup: {
-          from: "whatsappcontacts",
-          localField: "contactIds",
-          foreignField: "_id",
-          as: "contacts",
-        },
-      }
-    ]);
 
     allServicesRaw.forEach((s) => {
       const parsedTitle = s._id.replace(/Sent Service Details Template for /i, "").trim();
@@ -351,34 +383,6 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const allServices = Array.from(servicesMap.values()).sort((a: any, b: any) => b.count - a.count);
 
-    const recentRequestsRaw = await WhatsAppMessage.aggregate([
-      {
-        $match: {
-          ...dateFilter,
-          direction: "outbound",
-          messageType: "template",
-          content: { $regex: /^Sent Service Details Template for /i },
-        },
-      },
-      {
-        $sort: { createdAt: -1 },
-      },
-      {
-        $limit: 50,
-      },
-      {
-        $lookup: {
-          from: "whatsappcontacts",
-          localField: "contactId",
-          foreignField: "_id",
-          as: "contact",
-        },
-      },
-      {
-        $unwind: "$contact",
-      },
-    ]);
-
     const recentServiceRequests = recentRequestsRaw.map((msg) => ({
       userName: msg.contact.name || "Unknown",
       phoneNumber: msg.contact.phoneNumber,
@@ -391,8 +395,8 @@ export const getAnalytics = async (req: Request, res: Response) => {
       totalMessages: totalInbound + totalOutbound,
       totalInbound,
       totalOutbound,
-      returningUsersCount,
-      newUsersCount,
+      returningUsersCount: engagement.returning,
+      newUsersCount: engagement.newUsers,
       activityTimeline,
       allServices,
       recentServiceRequests,
@@ -406,17 +410,26 @@ export const getAnalytics = async (req: Request, res: Response) => {
 export const getAllContacts = async (req: Request, res: Response) => {
   try {
     const contacts = await WhatsAppContact.find().sort({ updatedAt: -1 }).lean();
-    const data = await Promise.all(
-      contacts.map(async (contact) => {
-        const messages = await WhatsAppMessage.find({ contactId: contact._id })
-          .sort({ createdAt: 1 })
-          .lean();
-        return {
-          ...contact,
-          messages,
-        };
-      })
-    );
+    
+    // Fix N+1 query problem: fetch all messages for these contacts in one query
+    const contactIds = contacts.map(c => c._id);
+    const allMessages = await WhatsAppMessage.find({ contactId: { $in: contactIds } })
+      .sort({ createdAt: 1 })
+      .lean();
+      
+    // Group messages by contactId
+    const messagesByContact = new Map();
+    allMessages.forEach(msg => {
+      const cid = msg.contactId.toString();
+      if (!messagesByContact.has(cid)) messagesByContact.set(cid, []);
+      messagesByContact.get(cid).push(msg);
+    });
+
+    const data = contacts.map(contact => ({
+      ...contact,
+      messages: messagesByContact.get(contact._id.toString()) || []
+    }));
+
     res.json(data);
   } catch (error) {
     console.error("Failed to fetch contacts", error);

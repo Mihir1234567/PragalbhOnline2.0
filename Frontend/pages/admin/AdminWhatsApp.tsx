@@ -126,7 +126,7 @@ const AdminWhatsApp: React.FC = () => {
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editContactForm, setEditContactForm] = useState({ name: "", phoneNumber: "", status: "open", dailyServiceLimit: 2, tags: "", notes: "" });
 
-  const fetchData = async () => {
+  const loadInitialData = async () => {
     try {
       const [contactsRes, servicesRes, analyticsRes, quickRepliesRes, templatesRes] = await Promise.all([
         api.get("/whatsapp/contacts"),
@@ -142,21 +142,33 @@ const AdminWhatsApp: React.FC = () => {
       setMetaTemplates(templatesRes.data?.data || []);
       setLoading(false);
     } catch (error) {
-      console.error("Failed to fetch WhatsApp data", error);
+      console.error("Failed to fetch initial WhatsApp data", error);
       setLoading(false);
     }
   };
 
+  const pollContacts = async () => {
+    try {
+      const contactsRes = await api.get("/whatsapp/contacts");
+      setContacts(contactsRes.data);
+    } catch (error) {
+      console.error("Failed to poll contacts", error);
+    }
+  };
+
   useEffect(() => {
-    fetchData();
+    loadInitialData();
+  }, [analyticsDateRange]);
+
+  useEffect(() => {
     let interval: any;
     if (activeTab === "chats") {
-      interval = setInterval(fetchData, 10000); // Poll every 10s only in chats
+      interval = setInterval(pollContacts, 10000); // Poll every 10s only in chats
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeTab, analyticsDateRange]);
+  }, [activeTab]);
 
   const activeContact = contacts.find((c) => c._id === activeContactId);
 
