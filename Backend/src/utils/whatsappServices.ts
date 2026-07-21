@@ -2,6 +2,22 @@ import axios from "axios";
 
 const getToken = () => process.env.ACCESS_TOKEN;
 const getPhoneId = () => process.env.PHONE_NUMBER_ID;
+const getWabaId = () => process.env.WABA_ID;
+
+export const getMetaTemplates = async () => {
+  const url = `https://graph.facebook.com/v20.0/${getWabaId()}/message_templates`;
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+    return data;
+  } catch (error: any) {
+    console.error("Meta API Templates Error:", error?.response?.data || error.message);
+    throw error?.response?.data || error;
+  }
+};
 
 export const sendWhatsAppMessage = async (phoneNumber: string, payload: any) => {
   const url = `https://graph.facebook.com/v17.0/${getPhoneId()}/messages`;

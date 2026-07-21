@@ -15,7 +15,9 @@ import {
   createQuickReply,
   deleteQuickReply,
   createContact,
-  deleteContact
+  deleteContact,
+  getTemplates,
+  sendTemplateManual
 } from "../controllers/whatsappController";
 import { protect } from "../middleware/auth.middleware";
 
@@ -24,6 +26,10 @@ const router = express.Router();
 // Webhook for Meta API (Public)
 router.get("/webhook", verifyWebhook);
 router.post("/webhook", handleWebhook);
+
+// Templates (Protected for Admin)
+router.get("/templates", protect, getTemplates);
+router.post("/send-template", protect, sendTemplateManual);
 
 // CRM Routes (Protected for Admin)
 router.get("/analytics", protect, getAnalytics);

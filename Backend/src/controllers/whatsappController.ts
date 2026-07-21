@@ -9,6 +9,7 @@ import {
   sendLimitReachedTemplate,
   sendTemplate,
   sendTextMessage,
+  getMetaTemplates,
 } from "../utils/whatsappServices";
 
 // Handle webhook verification
@@ -561,5 +562,37 @@ export const deleteQuickReply = async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete quick reply" });
+  }
+};
+
+export const getTemplates = async (req: Request, res: Response) => {
+  try {
+    const data = await getMetaTemplates();
+    res.json(data);
+  } catch (error) {
+    console.error("Failed to fetch meta templates", error);
+    res.status(500).json({ error: "Failed to fetch meta templates" });
+  }
+};
+
+export const sendTemplateManual = async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber, templateName, contactId } = req.body;
+    
+    // In a real scenario, you'd construct the full template payload based on the selected template's required params.
+    // Here we'll just send it as a simple text if we don't know the exact structure, or pass it to sendTemplate.
+    const response = await sendTemplate(phoneNumber, templateName);
+    
+    await saveOutboundMessage(
+      contactId, 
+      `Sent template: ${templateName}`, 
+      "template", 
+      response?.messages?.[0]?.id
+    );
+    
+    res.json({ success: true, messageId: response?.messages?.[0]?.id });
+  } catch (error) {
+    console.error("Failed to send template manually", error);
+    res.status(500).json({ error: "Failed to send template manually" });
   }
 };

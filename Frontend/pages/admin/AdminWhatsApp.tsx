@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { MessageSquare, Send, User, Users, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle, Search, Filter, ArrowDownLeft, ArrowUpRight, LayoutTemplate } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -99,6 +99,11 @@ const AdminWhatsApp: React.FC = () => {
   const [isReordering, setIsReordering] = useState(false);
   const [hasUnsavedOrder, setHasUnsavedOrder] = useState(false);
 
+  // Templates State
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
+
   // Analytics State
   const [analytics, setAnalytics] = useState<WhatsAppAnalytics | null>(null);
   const [servicesSearchQuery, setServicesSearchQuery] = useState("");
@@ -113,16 +118,18 @@ const AdminWhatsApp: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [contactsRes, servicesRes, analyticsRes, quickRepliesRes] = await Promise.all([
+      const [contactsRes, servicesRes, analyticsRes, quickRepliesRes, templatesRes] = await Promise.all([
         api.get("/whatsapp/contacts"),
         api.get("/whatsapp/services"),
         api.get("/whatsapp/analytics"),
         api.get("/whatsapp/quick-replies"),
+        api.get("/whatsapp/templates").catch(() => ({ data: { data: [] } })),
       ]);
       setContacts(contactsRes.data);
       setServices(servicesRes.data);
       setAnalytics(analyticsRes.data);
       setQuickReplies(quickRepliesRes.data);
+      setMetaTemplates(templatesRes.data?.data || []);
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch WhatsApp data", error);
@@ -150,6 +157,38 @@ const AdminWhatsApp: React.FC = () => {
   }, [activeContact?.messages.length, activeTab]);
 
   // Chat Handlers
+  const handleSendTemplate = async (templateName: string) => {
+    if (!activeContactId) return;
+    setSendingTemplate(true);
+    try {
+      const contact = contacts.find(c => c._id === activeContactId);
+      if (!contact) return;
+      
+      const res = await api.post("/whatsapp/send-template", {
+        phoneNumber: contact.phoneNumber,
+        templateName,
+        contactId: contact._id
+      });
+      
+      const newMsg = {
+        _id: res.data.messageId || Date.now().toString(),
+        direction: "outbound",
+        content: `Sent template: ${templateName}`,
+        messageType: "template",
+        createdAt: new Date().toISOString(),
+      };
+      
+      setMessages((prev) => [...prev, newMsg]);
+      setShowTemplateModal(false);
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error("Failed to send template", error);
+      alert("Failed to send template");
+    } finally {
+      setSendingTemplate(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeContactId) return;
@@ -180,6 +219,36 @@ const AdminWhatsApp: React.FC = () => {
   };
 
   const renderMessageContent = (msg: WhatsAppMessage) => {
+    if (msg.messageType === "template") {
+      let tplName = "";
+      if (msg.content.startsWith("Sent template: ")) {
+        tplName = msg.content.replace("Sent template: ", "");
+      } else if (msg.content === "Sent Welcome Template") {
+        tplName = "welcome_message_utility";
+      } else if (msg.content === "Sent limit reached template") {
+        tplName = "limit_reached";
+      } else if (msg.content.startsWith("Sent services_")) {
+        tplName = msg.content.replace("Sent ", "");
+      }
+      
+      const tplData = metaTemplates.find(t => t.name === tplName);
+      
+      return (
+        <div className="bg-black/10 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/10 mt-1 shadow-sm min-w-[200px]">
+          <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-70 border-b border-black/10 dark:border-white/10 pb-1">
+            <LayoutTemplate size={12} /> Template: {tplName || "Unknown"}
+          </div>
+          {tplData ? (
+             <div className="text-sm whitespace-pre-wrap leading-relaxed">
+               {tplData.components?.find((c: any) => c.type === 'BODY')?.text || "No body content"}
+             </div>
+          ) : (
+             <div className="text-sm italic">{msg.content}</div>
+          )}
+        </div>
+      );
+    }
+
     if (msg.messageType === "text" && msg.direction === "outbound") {
        return msg.content;
     }
@@ -680,14 +749,24 @@ const AdminWhatsApp: React.FC = () => {
                   )}
 
                   <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
-                    <button
-                      type="button"
-                      onClick={() => setShowQuickReplies(!showQuickReplies)}
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors shrink-0"
-                      title="Quick Replies"
-                    >
-                      <Zap size={20} />
-                    </button>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowTemplateModal(true)}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                        title="Send Template"
+                      >
+                        <LayoutTemplate size={20} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickReplies(!showQuickReplies)}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                        title="Quick Replies"
+                      >
+                        <Zap size={20} />
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={inputText}
@@ -1452,6 +1531,54 @@ const AdminWhatsApp: React.FC = () => {
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white">Send WhatsApp Template</h3>
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {metaTemplates.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <LayoutTemplate size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>No templates found or missing WABA_ID.</p>
+                  <p className="text-sm mt-2">Ensure your WABA_ID is configured in the environment to fetch templates from Meta.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {metaTemplates.map((tpl) => (
+                    <div 
+                      key={tpl.id} 
+                      className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col"
+                      onClick={() => handleSendTemplate(tpl.name)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-semibold text-slate-800 dark:text-white truncate">{tpl.name}</span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${tpl.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {tpl.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mb-2">Language: {tpl.language}</div>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded text-sm text-slate-600 dark:text-slate-300 flex-1 whitespace-pre-wrap">
+                        {tpl.components?.find((c: any) => c.type === 'BODY')?.text || "No body content"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
