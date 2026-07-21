@@ -353,7 +353,7 @@ const AdminWhatsApp: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-slate-900 -mx-6 -mt-6">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-slate-900 -mx-6 -mt-6 -mb-6">
       
       {/* Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto scrollbar-hide pt-2 px-6 gap-2">
