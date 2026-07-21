@@ -49,6 +49,17 @@ interface WhatsAppAnalytics {
   recentServiceRequests: { userName: string; phoneNumber: string; serviceTitle: string; timestamp: string }[];
 }
 
+const getRequestedServices = (messages: any[]) => {
+  if (!messages || messages.length === 0) return [];
+  const services = new Set<string>();
+  messages.forEach(m => {
+    if (m.direction === 'outbound' && m.messageType === 'template' && m.content.startsWith('Sent Service Details Template for ')) {
+      services.add(m.content.replace('Sent Service Details Template for ', ''));
+    }
+  });
+  return Array.from(services);
+};
+
 const AdminWhatsApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"chats" | "services" | "analytics" | "quick_replies">(() => {
     return (localStorage.getItem("whatsappActiveTab") as "chats" | "services" | "analytics" | "quick_replies") || "chats";
@@ -907,6 +918,7 @@ const AdminWhatsApp: React.FC = () => {
                 <thead className="bg-slate-50/50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="py-4 px-6">Contact Info</th>
+                    <th className="py-4 px-6">Requested Services</th>
                     <th className="py-4 px-6">Status</th>
                     <th className="py-4 px-6">Daily Limit</th>
                     <th className="py-4 px-6">Used Today</th>
@@ -920,6 +932,19 @@ const AdminWhatsApp: React.FC = () => {
                       <td className="py-4 px-6">
                         <div className="font-semibold text-slate-800 dark:text-white">{contact.name || "Unknown"}</div>
                         <div className="text-xs text-slate-500 mt-0.5">{contact.phoneNumber}</div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          {(() => {
+                            const services = getRequestedServices(contact.messages);
+                            if (services.length === 0) return <span className="text-slate-400 italic text-xs">None</span>;
+                            return services.map((srv, i) => (
+                              <span key={i} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[10px] px-2 py-0.5 rounded-md font-medium border border-indigo-100 dark:border-indigo-800 break-words line-clamp-2" title={srv}>
+                                {srv}
+                              </span>
+                            ));
+                          })()}
+                        </div>
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
@@ -960,7 +985,7 @@ const AdminWhatsApp: React.FC = () => {
                   ))}
                   {contacts.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">No contacts found.</td>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">No contacts found.</td>
                     </tr>
                   )}
                 </tbody>

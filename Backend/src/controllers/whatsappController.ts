@@ -458,7 +458,7 @@ export const deleteBotService = async (req: Request, res: Response) => {
 
 export const updateContact = async (req: Request, res: Response) => {
   try {
-    const { status, tags, notes, unreadCount, name, phoneNumber } = req.body;
+    const { status, tags, notes, unreadCount, name, phoneNumber, dailyServiceLimit } = req.body;
     const contactId = req.params.id;
 
     // Build update object dynamically to only update provided fields
@@ -469,6 +469,7 @@ export const updateContact = async (req: Request, res: Response) => {
     if (unreadCount !== undefined) updateData.unreadCount = unreadCount;
     if (name !== undefined) updateData.name = name;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (dailyServiceLimit !== undefined) updateData.dailyServiceLimit = dailyServiceLimit;
 
     const contact = await WhatsAppContact.findByIdAndUpdate(
       contactId,
