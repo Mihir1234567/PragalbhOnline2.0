@@ -19,7 +19,7 @@ export { app, server };
 // Middleware
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*", // Default to * for dev if not set
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true, 
     credentials: true,
   })
 );
