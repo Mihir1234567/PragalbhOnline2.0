@@ -1288,10 +1288,10 @@ const AdminWhatsApp: React.FC = () => {
               </button>
             </div>
             <div className="p-6">
-              <form id="edit-contact-form" onSubmit={handleEditContactSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form id="edit-contact-form" onSubmit={handleEditContactSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Name</label>
                     <input
                       type="text"
                       value={editContactForm.name}
@@ -1301,7 +1301,7 @@ const AdminWhatsApp: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Status</label>
                     <select
                       value={editContactForm.status}
                       onChange={(e) => setEditContactForm({ ...editContactForm, status: e.target.value })}
@@ -1314,9 +1314,9 @@ const AdminWhatsApp: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Daily Service Limit (0 for unlimited)</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Daily Service Limit</label>
                     <input
                       type="number"
                       min="0"
@@ -1324,16 +1324,18 @@ const AdminWhatsApp: React.FC = () => {
                       onChange={(e) => setEditContactForm({ ...editContactForm, dailyServiceLimit: parseInt(e.target.value) || 0 })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
                     />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">Set to 0 for unlimited services.</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags (comma separated)</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Tags</label>
                     <input
                       type="text"
                       value={editContactForm.tags}
                       onChange={(e) => setEditContactForm({ ...editContactForm, tags: e.target.value })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
-                      placeholder="e.g. VIP, Requires Followup"
+                      placeholder="e.g. VIP, urgent"
                     />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">Separate multiple tags with commas.</p>
                   </div>
                 </div>
 
