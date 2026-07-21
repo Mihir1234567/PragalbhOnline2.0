@@ -488,12 +488,15 @@ export const createContact = async (req: Request, res: Response) => {
     const { name, phoneNumber } = req.body;
     if (!phoneNumber) return res.status(400).json({ error: "Phone number is required" });
     
+    // Sanitize phone number (remove +, spaces, hyphens)
+    const sanitizedPhone = phoneNumber.replace(/[^0-9]/g, '');
+    
     // Check if exists
-    let contact = await WhatsAppContact.findOne({ phoneNumber });
+    let contact = await WhatsAppContact.findOne({ phoneNumber: sanitizedPhone });
     if (contact) return res.status(400).json({ error: "Contact already exists" });
 
     contact = new WhatsAppContact({
-      phoneNumber,
+      phoneNumber: sanitizedPhone,
       name,
       currentPage: 1,
       status: "open",

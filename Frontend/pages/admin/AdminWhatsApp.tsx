@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck } from "lucide-react";
+import { MessageSquare, Send, User, Clock, Phone, Settings, Plus, Edit2, Trash2, X, GripVertical, Save, Zap, FileText, CheckCircle2, Check, CheckCheck, AlertCircle } from "lucide-react";
 import { Reorder } from "framer-motion";
 import api from "../../lib/client";
 
@@ -193,7 +193,7 @@ const AdminWhatsApp: React.FC = () => {
     e.preventDefault();
     try {
       const { data } = await api.post("/whatsapp/contacts", addContactForm);
-      setContacts([data, ...contacts]);
+      setContacts([{ ...data, messages: [] }, ...contacts]);
       setShowAddContactModal(false);
       setAddContactForm({ name: "", phoneNumber: "" });
       setActiveContactId(data._id);
@@ -526,7 +526,8 @@ const AdminWhatsApp: React.FC = () => {
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           
                           {msg.direction === "outbound" && (
-                             <span className="ml-1 flex items-center">
+                             <span className="ml-1 flex items-center gap-0.5">
+                               {msg.status === "failed" && <AlertCircle size={14} className="text-red-400" title="Failed to send" />}
                                {msg.status === "sent" && <Check size={14} />}
                                {msg.status === "delivered" && <CheckCheck size={14} />}
                                {msg.status === "read" && <CheckCheck size={14} className="text-emerald-400" />}
