@@ -460,7 +460,7 @@ export const deleteBotService = async (req: Request, res: Response) => {
 
 export const updateContact = async (req: Request, res: Response) => {
   try {
-    const { status, tags, notes, unreadCount } = req.body;
+    const { status, tags, notes, unreadCount, name, phoneNumber } = req.body;
     const contactId = req.params.id;
 
     // Build update object dynamically to only update provided fields
@@ -469,6 +469,8 @@ export const updateContact = async (req: Request, res: Response) => {
     if (tags !== undefined) updateData.tags = tags;
     if (notes !== undefined) updateData.notes = notes;
     if (unreadCount !== undefined) updateData.unreadCount = unreadCount;
+    if (name !== undefined) updateData.name = name;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
 
     const contact = await WhatsAppContact.findByIdAndUpdate(
       contactId,
@@ -478,6 +480,40 @@ export const updateContact = async (req: Request, res: Response) => {
     res.json(contact);
   } catch (error) {
     res.status(500).json({ error: "Failed to update contact" });
+  }
+};
+
+export const createContact = async (req: Request, res: Response) => {
+  try {
+    const { name, phoneNumber } = req.body;
+    if (!phoneNumber) return res.status(400).json({ error: "Phone number is required" });
+    
+    // Check if exists
+    let contact = await WhatsAppContact.findOne({ phoneNumber });
+    if (contact) return res.status(400).json({ error: "Contact already exists" });
+
+    contact = new WhatsAppContact({
+      phoneNumber,
+      name,
+      currentPage: 1,
+      status: "open",
+      unreadCount: 0
+    });
+    await contact.save();
+    res.status(201).json(contact);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create contact" });
+  }
+};
+
+export const deleteContact = async (req: Request, res: Response) => {
+  try {
+    const contactId = req.params.id;
+    await WhatsAppContact.findByIdAndDelete(contactId);
+    await WhatsAppMessage.deleteMany({ contactId });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete contact" });
   }
 };
 

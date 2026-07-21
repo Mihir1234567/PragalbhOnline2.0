@@ -71,6 +71,8 @@ const AdminWhatsApp: React.FC = () => {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [editingNotes, setEditingNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [addContactForm, setAddContactForm] = useState({ name: "", phoneNumber: "" });
 
   // Quick Replies State
   const [showQuickReplyForm, setShowQuickReplyForm] = useState(false);
@@ -123,7 +125,7 @@ const AdminWhatsApp: React.FC = () => {
     if (activeTab === "chats") {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [activeContact?.messages, activeTab]);
+  }, [activeContact?.messages.length, activeTab]);
 
   // Chat Handlers
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -187,29 +189,29 @@ const AdminWhatsApp: React.FC = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    if (filteredContacts.length === 0) return;
-    const headers = ["Name", "Phone Number", "Status", "Unread Count", "Tags", "Notes", "Last Active"];
-    const rows = filteredContacts.map(c => [
-      c.name || "Unknown",
-      c.phoneNumber,
-      c.status,
-      c.unreadCount.toString(),
-      c.tags.join("; "),
-      (c.notes || "").replace(/\n/g, " "),
-      c.messages.length > 0 ? new Date(c.messages[c.messages.length - 1].createdAt).toLocaleString() : ""
-    ]);
-    
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `pragalbh_leads_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleCreateContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post("/whatsapp/contacts", addContactForm);
+      setContacts([data, ...contacts]);
+      setShowAddContactModal(false);
+      setAddContactForm({ name: "", phoneNumber: "" });
+      setActiveContactId(data._id);
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Failed to create contact");
+    }
+  };
+
+  const handleDeleteContact = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this contact and all their messages?")) {
+      try {
+        await api.delete(`/whatsapp/contacts/${id}`);
+        setContacts(contacts.filter(c => c._id !== id));
+        if (activeContactId === id) setActiveContactId(null);
+      } catch (error) {
+        console.error("Failed to delete contact", error);
+      }
+    }
   };
 
   const filteredContacts = contacts.filter((c) => {
@@ -372,11 +374,11 @@ const AdminWhatsApp: React.FC = () => {
                   <option value="resolved">Resolved</option>
                 </select>
                 <button
-                  onClick={handleExportCSV}
-                  title="Export to CSV"
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+                  onClick={() => setShowAddContactModal(true)}
+                  title="Add Contact"
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center"
                 >
-                  Export
+                  <Plus size={16} />
                 </button>
               </div>
             </div>
@@ -478,14 +480,20 @@ const AdminWhatsApp: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => {
-                        setEditingNotes(activeContact.notes || "");
-                        setShowNotesModal(true);
-                      }}
-                      className="text-xs bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50 rounded-lg px-3 py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-medium transition-colors"
-                    >
-                      Notes
-                    </button>
+                          onClick={() => {
+                            setEditingNotes(activeContact.notes || "");
+                            setShowNotesModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg font-medium text-sm flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          <FileText size={14} /> Notes
+                        </button>
+                        <button
+                          onClick={() => handleDeleteContact(activeContact._id)}
+                          className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg font-medium text-sm flex items-center gap-1.5 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50"
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
                   </div>
                 </div>
 
@@ -1009,6 +1017,64 @@ const AdminWhatsApp: React.FC = () => {
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50"
               >
                 {notesSaving ? "Saving..." : "Save Notes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Contact Modal */}
+      {showAddContactModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
+              <h3 className="font-semibold text-slate-800 dark:text-white">Add New Contact</h3>
+              <button 
+                onClick={() => setShowAddContactModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <form id="add-contact-form" onSubmit={handleCreateContact} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={addContactForm.name}
+                    onChange={(e) => setAddContactForm({ ...addContactForm, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addContactForm.phoneNumber}
+                    onChange={(e) => setAddContactForm({ ...addContactForm, phoneNumber: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                    placeholder="+919876543210"
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setShowAddContactModal(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="add-contact-form"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+              >
+                Save
               </button>
             </div>
           </div>

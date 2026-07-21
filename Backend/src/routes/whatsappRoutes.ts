@@ -13,7 +13,9 @@ import {
   updateContact,
   getQuickReplies,
   createQuickReply,
-  deleteQuickReply
+  deleteQuickReply,
+  createContact,
+  deleteContact
 } from "../controllers/whatsappController";
 import { protect } from "../middleware/auth.middleware";
 
@@ -26,7 +28,9 @@ router.post("/webhook", handleWebhook);
 // CRM Routes (Protected for Admin)
 router.get("/analytics", protect, getAnalytics);
 router.get("/contacts", protect, getAllContacts);
+router.post("/contacts", protect, createContact);
 router.patch("/contacts/:id", protect, updateContact);
+router.delete("/contacts/:id", protect, deleteContact);
 router.post("/send", protect, sendManualMessage);
 
 // Quick Replies CRUD
