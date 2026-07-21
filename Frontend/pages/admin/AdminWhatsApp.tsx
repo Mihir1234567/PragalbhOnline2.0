@@ -498,13 +498,15 @@ const AdminWhatsApp: React.FC = () => {
             {activeContact ? (
               <>
                 <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <User size={20} />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-white flex items-center flex-wrap gap-2">
-                        {activeContact.name || activeContact.phoneNumber}
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                        <span className="truncate max-w-[150px] sm:max-w-[200px] xl:max-w-[300px]">
+                          {activeContact.name || activeContact.phoneNumber}
+                        </span>
                         {activeContact.tags?.slice(0, 3).map((tag, i) => (
                           <button 
                             key={i} 
