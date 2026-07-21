@@ -155,10 +155,41 @@ const AdminWhatsApp: React.FC = () => {
     }
   };
 
+  const lastPollTimeRef = useRef<string | null>(null);
+
   const pollContacts = async () => {
     try {
-      const contactsRes = await api.get("/whatsapp/contacts");
-      setContacts(contactsRes.data);
+      let url = "/whatsapp/contacts";
+      if (lastPollTimeRef.current) {
+        url += `?since=${lastPollTimeRef.current}`;
+      }
+      const pollTime = new Date().toISOString();
+      const contactsRes = await api.get(url);
+      
+      const newData: WhatsAppContact[] = contactsRes.data;
+      if (newData.length > 0) {
+        setContacts((prev) => {
+          const updatedContacts = [...prev];
+          newData.forEach((newContact) => {
+            const existingIdx = updatedContacts.findIndex((c) => c._id === newContact._id);
+            if (existingIdx >= 0) {
+              const existing = updatedContacts[existingIdx];
+              // Merge messages, taking care not to duplicate
+              const existingMsgIds = new Set(existing.messages.map(m => m._id));
+              const newUniqueMsgs = newContact.messages.filter(m => !existingMsgIds.has(m._id));
+              
+              updatedContacts[existingIdx] = {
+                ...newContact,
+                messages: [...existing.messages, ...newUniqueMsgs]
+              };
+            } else {
+              updatedContacts.push(newContact);
+            }
+          });
+          return updatedContacts;
+        });
+      }
+      lastPollTimeRef.current = pollTime;
     } catch (error) {
       console.error("Failed to poll contacts", error);
     }

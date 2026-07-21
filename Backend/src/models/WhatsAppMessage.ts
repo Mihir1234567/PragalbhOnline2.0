@@ -23,4 +23,7 @@ const WhatsAppMessageSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+WhatsAppMessageSchema.index({ contactId: 1, createdAt: 1 });
+WhatsAppMessageSchema.index({ wamId: 1, direction: 1 });
+
 export default mongoose.model<IWhatsAppMessage>("WhatsAppMessage", WhatsAppMessageSchema);

@@ -482,11 +482,27 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
 export const getAllContacts = async (req: Request, res: Response) => {
   try {
-    const contacts = await WhatsAppContact.find().sort({ updatedAt: -1 }).lean();
+    const { since } = req.query;
+    let contactFilter: any = {};
+    let messageFilter: any = {};
     
-    // Fix N+1 query problem: fetch all messages for these contacts in one query
+    if (since && typeof since === 'string') {
+      const sinceDate = new Date(since);
+      contactFilter = { updatedAt: { $gte: sinceDate } };
+      messageFilter = { createdAt: { $gte: sinceDate } };
+    }
+
+    const contacts = await WhatsAppContact.find(contactFilter).sort({ updatedAt: -1 }).lean();
+    
+    if (since && contacts.length === 0) {
+      return res.json([]);
+    }
+    
     const contactIds = contacts.map(c => c._id);
-    const allMessages = await WhatsAppMessage.find({ contactId: { $in: contactIds } })
+    const allMessages = await WhatsAppMessage.find({ 
+      contactId: { $in: contactIds },
+      ...messageFilter
+    })
       .sort({ createdAt: 1 })
       .lean();
       
