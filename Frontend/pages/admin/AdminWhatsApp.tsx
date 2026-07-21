@@ -179,7 +179,13 @@ const AdminWhatsApp: React.FC = () => {
         createdAt: new Date().toISOString(),
       };
       
-      setMessages((prev) => [...prev, newMsg]);
+      setContacts((prev) =>
+        prev.map((c) =>
+          c._id === activeContactId
+            ? { ...c, messages: [...(c.messages || []), newMsg] }
+            : c
+        )
+      );
       setShowTemplateModal(false);
       setTimeout(scrollToBottom, 100);
     } catch (error) {

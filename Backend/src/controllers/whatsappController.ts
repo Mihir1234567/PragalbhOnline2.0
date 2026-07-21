@@ -579,9 +579,20 @@ export const sendTemplateManual = async (req: Request, res: Response) => {
   try {
     const { phoneNumber, templateName, language, contactId } = req.body;
     
-    // In a real scenario, you'd construct the full template payload based on the selected template's required params.
-    // Here we'll just send it as a simple text if we don't know the exact structure, or pass it to sendTemplate.
-    const response = await sendTemplate(phoneNumber, templateName, language);
+    let components: any[] = [];
+    if (templateName === "service_details") {
+      components = [
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: "તમારી પસંદ કરેલી સેવા" },
+            { type: "text", text: "જરૂરી દસ્તાવેજોની યાદી" },
+          ],
+        },
+      ];
+    }
+    
+    const response = await sendTemplate(phoneNumber, templateName, language, components);
     
     await saveOutboundMessage(
       contactId, 

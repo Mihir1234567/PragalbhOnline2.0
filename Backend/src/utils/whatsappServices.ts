@@ -35,7 +35,7 @@ export const sendWhatsAppMessage = async (phoneNumber: string, payload: any) => 
   }
 };
 
-export const sendTemplate = async (phoneNumber: string, templateName: string, language?: string) => {
+export const sendTemplate = async (phoneNumber: string, templateName: string, language?: string, components?: any[]) => {
   const langCode = language || (["services_2", "services_3"].includes(templateName) ? "en" : "gu");
   const payload = {
     messaging_product: "whatsapp",
@@ -46,6 +46,7 @@ export const sendTemplate = async (phoneNumber: string, templateName: string, la
       language: {
         code: langCode,
       },
+      ...(components && components.length > 0 ? { components } : {})
     },
   };
   return sendWhatsAppMessage(phoneNumber, payload);
