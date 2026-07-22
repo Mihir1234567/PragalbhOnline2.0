@@ -8,7 +8,6 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Services from "./pages/Services";
-import Apply from "./pages/Apply";
 import Contact from "./pages/Contact";
 import VisitTracker from "./components/VisitTracker";
 
@@ -70,18 +69,7 @@ const App: React.FC = () => {
                         </>
                       }
                     />
-                    <Route
-                      path="/apply"
-                      element={
-                        <>
-                          <Header />
-                          <main className="flex-grow">
-                            <Apply />
-                          </main>
-                          <Footer />
-                        </>
-                      }
-                    />
+
                     <Route
                       path="/contact"
                       element={
