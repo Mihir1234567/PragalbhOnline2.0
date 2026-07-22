@@ -75,7 +75,6 @@ const Footer: React.FC = () => {
                   {t("nav.services")}
                 </Link>
               </li>
-             
               <li>
                 <Link
                   to="/contact"

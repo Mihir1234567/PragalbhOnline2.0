@@ -128,13 +128,7 @@ const Header: React.FC = () => {
                 {link.label}
               </Link>
             ))}
-            <Link
-              to="/apply"
-              onClick={() => setIsMenuOpen(false)}
-              className="block w-full text-center mt-4 bg-primary-600 text-white px-4 py-3 rounded-lg font-medium shadow-md active:scale-95 transition-transform"
-            >
-              {t("nav.apply")}
-            </Link>
+
           </div>
         </div>
       )}
