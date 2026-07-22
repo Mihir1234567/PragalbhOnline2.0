@@ -75,14 +75,7 @@ const Footer: React.FC = () => {
                   {t("nav.services")}
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/apply"
-                  className="text-primary-200 hover:text-white transition-colors text-sm"
-                >
-                  {t("nav.apply")}
-                </Link>
-              </li>
+             
               <li>
                 <Link
                   to="/contact"
