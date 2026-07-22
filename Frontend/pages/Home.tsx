@@ -124,6 +124,13 @@ const Home: React.FC = () => {
 
               <Link
                 to="/services"
+                className="inline-flex items-center justify-center px-8 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-primary-500/30 transition-all transform hover:-translate-y-0.5"
+              >
+                {t("hero.cta")}
+                <ArrowRight className="ml-2" size={20} />
+              </Link>
+              <Link
+                to="/services"
                 className="inline-flex items-center justify-center px-8 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-lg transition-all"
               >
                 {t("hero.secondary_cta")}
