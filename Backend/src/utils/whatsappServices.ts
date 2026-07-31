@@ -142,3 +142,27 @@ export const sendTextMessage = (phoneNumber: string, text: string) => {
   };
   return sendWhatsAppMessage(phoneNumber, payload);
 };
+
+export const sendAdminNotification = async (
+  userName: string,
+  userPhone: string,
+  selectedService: string,
+  timestampStr: string
+) => {
+  const adminNumber = process.env.ADMIN_PHONE_NUMBER;
+  if (!adminNumber) {
+    console.log("ADMIN_PHONE_NUMBER is not set in environment settings. Skipping notification.");
+    return null;
+  }
+
+  const nameVal = userName && userName.trim() ? userName : "Not Provided";
+
+  const messageBody = 
+    `Name :- ${nameVal}\n` +
+    `Number :- ${userPhone}\n` +
+    `Service :- ${selectedService}\n` +
+    `Timestamp :- ${timestampStr}`;
+
+  return sendTextMessage(adminNumber, messageBody);
+};
+

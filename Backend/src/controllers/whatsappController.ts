@@ -9,6 +9,7 @@ import {
   sendLimitReachedTemplate,
   sendTemplate,
   sendTextMessage,
+  sendAdminNotification,
   getMetaTemplates,
 } from "../utils/whatsappServices";
 
@@ -233,6 +234,20 @@ async function handleServiceRequest(contact: any, phoneNumber: string, serviceDe
     const response = await sendTextMessage(phoneNumber, "Service not found.");
     await saveOutboundMessage(contact._id, "Service not found.", "text", response?.messages?.[0]?.id);
     return;
+  }
+
+  // Send admin notification
+  try {
+    const now = new Date();
+    const timestampStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true });
+    await sendAdminNotification(
+      contact.name || "",
+      phoneNumber,
+      serviceDetails.title || "",
+      timestampStr
+    );
+  } catch (adminErr) {
+    console.error("Failed to send admin notification:", adminErr);
   }
 
   const timeThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
