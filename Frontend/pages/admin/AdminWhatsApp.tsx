@@ -1209,37 +1209,67 @@ const AdminWhatsApp: React.FC = () => {
 
             {/* Services Doughnut Chart */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Top Services Requested</h3>
-              <div className="h-72 w-full">
-                {analytics.allServices.filter(s => s.count > 0).length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={analytics.allServices.filter(s => s.count > 0).slice(0, 5)}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="count"
-                        nameKey="title"
-                      >
-                        {analytics.allServices.filter(s => s.count > 0).slice(0, 5).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Legend iconType="circle" layout="vertical" verticalAlign="bottom" align="center" />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                    <PieChartIcon size={48} className="mb-2 opacity-20" />
-                    <p>No service requests in this period</p>
-                  </div>
-                )}
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Top Services Requested</h3>
+              <div className="h-80 w-full">
+                {(() => {
+                  const activeServices = (analytics.allServices || []).filter(s => s.count > 0);
+                  if (activeServices.length === 0) {
+                    return (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                        <PieChartIcon size={48} className="mb-2 opacity-20" />
+                        <p>No service requests in this period</p>
+                      </div>
+                    );
+                  }
+
+                  const sorted = [...activeServices].sort((a, b) => b.count - a.count);
+                  let pieData = sorted;
+                  if (sorted.length > 6) {
+                    const top5 = sorted.slice(0, 5);
+                    const remainingCount = sorted.slice(5).reduce((sum, item) => sum + item.count, 0);
+                    pieData = [...top5, { title: "અન્ય સેવાઓ (Others)", count: remainingCount }];
+                  }
+
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="38%"
+                          innerRadius={48}
+                          outerRadius={72}
+                          paddingAngle={4}
+                          dataKey="count"
+                          nameKey="title"
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend 
+                          content={(props) => {
+                            const { payload } = props;
+                            if (!payload) return null;
+                            return (
+                              <ul className="flex flex-wrap justify-center gap-x-3 gap-y-2 pt-2 px-1 text-xs max-h-28 overflow-y-auto">
+                                {payload.map((entry: any, index: number) => (
+                                  <li key={`legend-${index}`} className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium" title={entry.value}>
+                                    <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                                    <span className="leading-snug max-w-[130px] sm:max-w-[160px] truncate">{entry.value}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </div>
             </div>
           </div>

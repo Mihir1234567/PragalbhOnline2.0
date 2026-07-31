@@ -14,6 +14,12 @@ import { Application, useAdmin } from "../../context/AdminContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useServices } from "../../context/ServiceContext";
 
+interface ApplicationDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  application: Application | null;
+}
+
 const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({
   isOpen,
   onClose,
